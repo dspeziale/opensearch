@@ -63,7 +63,7 @@
                                 <th>Tipo</th>
                                 <th>Dimensione</th>
                                 <th>Indicizzato</th>
-                                <th>Keywords</th>
+                                <th>Keywords/Tags</th>
                                 <th>Azioni</th>
                             </tr>
                         </thead>
@@ -177,6 +177,12 @@ function renderDocuments() {
             `<span class="badge badge-secondary">${kw}</span>`
         ).join(' ');
 
+        const tags = (doc.tags || []).map(tag =>
+            `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+        ).join(' ');
+
+        const keywordsTags = [keywords, tags].filter(x => x).join(' ');
+
         const date = new Date(doc.indexed_at).toLocaleString('it-IT');
 
         const row = `
@@ -188,7 +194,7 @@ function renderDocuments() {
                 <td><span class="badge badge-info">${doc.type}</span></td>
                 <td>${formatSize(doc.file_size)}</td>
                 <td><small>${date}</small></td>
-                <td>${keywords}</td>
+                <td>${keywordsTags || '<em class="text-muted">Nessuno</em>'}</td>
                 <td>
                     <button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')">
                         <i class="fas fa-eye"></i>
@@ -277,6 +283,21 @@ function showDocumentDetail(doc) {
         `<span class="badge badge-secondary">${kw}</span>`
     ).join(' ');
 
+    const tags = (doc.tags || []).map(tag =>
+        `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+    ).join(' ');
+
+    let tagsHtml = '';
+    if (tags) {
+        tagsHtml = `
+            <hr>
+            <div>
+                <strong>Tags:</strong><br>
+                ${tags}
+            </div>
+        `;
+    }
+
     const modalContent = `
         <div class="row">
             <div class="col-md-6">
@@ -292,8 +313,9 @@ function showDocumentDetail(doc) {
         <hr>
         <div>
             <strong>Keywords:</strong><br>
-            ${keywords}
+            ${keywords || '<em class="text-muted">Nessuno</em>'}
         </div>
+        ${tagsHtml}
         <hr>
         <div>
             <strong>Summary:</strong>

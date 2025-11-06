@@ -205,6 +205,15 @@ def api_upload():
                 'error': f"Failed to parse document: {parsed_doc.get('error')}"
             }), 500
 
+        # Aggiungi tags se presenti
+        tags_input = request.form.get('tags', '').strip()
+        if tags_input:
+            # Split per virgola e pulisci
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            parsed_doc['tags'] = tags
+        else:
+            parsed_doc['tags'] = []
+
         # Indicizza in OpenSearch
         index_result = opensearch.index_document(parsed_doc)
 
@@ -224,7 +233,8 @@ def api_upload():
                 'filename': filename,
                 'type': parsed_doc['type'],
                 'size': parsed_doc['metadata']['size'],
-                'keywords': parsed_doc['keywords'][:10]
+                'keywords': parsed_doc['keywords'][:10],
+                'tags': parsed_doc.get('tags', [])
             }
         })
 

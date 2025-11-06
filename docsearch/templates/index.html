@@ -271,6 +271,10 @@ function displayResults(results) {
             `<span class="keyword-badge">${kw}</span>`
         ).join(' ');
 
+        const tags = (result.tags || []).map(tag =>
+            `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+        ).join(' ');
+
         html += `
             <div class="card search-result mb-3">
                 <div class="card-body">
@@ -288,6 +292,7 @@ function displayResults(results) {
                     </div>
                     <div class="mt-2">
                         ${keywords}
+                        ${tags}
                     </div>
                 </div>
             </div>
