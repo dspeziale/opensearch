@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block page_title %}Ricerca Intelligente{% endblock %}
+
+{% block content %}
+<!-- Statistiche -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info stat-card">
+            <div class="inner">
+                <h3>{{ stats.total_documents }}</h3>
+                <p>Documenti Totali</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-success stat-card">
+            <div class="inner">
+                <h3>{{ "%.1f"|format(stats.total_size / 1024 / 1024) }}</h3>
+                <p>MB di Contenuti</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-database"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning stat-card">
+            <div class="inner">
+                <h3>{{ stats.by_type|length }}</h3>
+                <p>Tipi di Documento</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-tags"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger stat-card">
+            <div class="inner">
+                <h3 id="search-count">0</h3>
+                <p>Ricerche Effettuate</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-search"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form Ricerca -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-magic"></i> Ricerca Intelligente</h3>
+            </div>
+            <div class="card-body">
+                <form id="search-form">
+                    <div class="input-group input-group-lg">
+                        <input
+                            type="text"
+                            class="form-control form-control-lg"
+                            id="search-query"
+                            placeholder="Chiedi qualsiasi cosa... Es: Come installare OpenSearch?"
+                            required>
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i> Cerca
+                            </button>
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">
+                        💡 Scrivi una domanda o parole chiave. Il sistema ti fornirà una risposta intelligente con percorsi di approfondimento.
+                    </small>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="loading" class="row" style="display: none;">
+    <div class="col-md-12 text-center">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="sr-only">Ricerca in corso...</span>
+        </div>
+        <p class="mt-3">Sto analizzando i documenti...</p>
+    </div>
+</div>
+
+<!-- Risposta Intelligente -->
+<div id="answer-section" class="row" style="display: none;">
+    <div class="col-md-12">
+        <!-- Answer Card -->
+        <div class="card card-success">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-robot"></i> Risposta Intelligente</h3>
+            </div>
+            <div class="card-body">
+                <div id="answer-text" class="mb-3"></div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong><i class="fas fa-chart-line"></i> Confidenza:</strong>
+                        <div class="confidence-bar mt-2">
+                            <div class="confidence-fill" id="confidence-fill" style="width: 0%"></div>
+                        </div>
+                        <small id="confidence-text" class="text-muted"></small>
+                    </div>
+                    <div class="col-md-6">
+                        <strong><i class="fas fa-file"></i> Fonti:</strong>
+                        <div id="sources-list" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flow Card -->
+        <div class="card card-info">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-route"></i> Percorso di Approfondimento</h3>
+            </div>
+            <div class="card-body">
+                <div id="flow-steps"></div>
+            </div>
+        </div>
+
+        <!-- Suggestions -->
+        <div class="card card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-lightbulb"></i> Suggerimenti</h3>
+            </div>
+            <div class="card-body">
+                <div id="suggestions-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Risultati Ricerca -->
+<div id="results-section" class="row" style="display: none;">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-list"></i> Documenti Trovati (<span id="results-count">0</span>)</h3>
+            </div>
+            <div class="card-body" id="results-container">
+                <!-- Risultati dinamici -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let searchCounter = 0;
+
+// Handle search form
+$('#search-form').on('submit', function(e) {
+    e.preventDefault();
+
+    const query = $('#search-query').val().trim();
+    if (!query) return;
+
+    performSearch(query);
+});
+
+function performSearch(query) {
+    // Update counter
+    searchCounter++;
+    $('#search-count').text(searchCounter);
+
+    // Show loading
+    $('#loading').show();
+    $('#answer-section').hide();
+    $('#results-section').hide();
+
+    // API call
+    $.ajax({
+        url: '/api/search',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            query: query,
+            size: 10,
+            use_rag: true
+        }),
+        success: function(response) {
+            $('#loading').hide();
+
+            if (response.success) {
+                displayAnswer(response);
+                displayResults(response.results);
+            } else {
+                showError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#loading').hide();
+            showError('Errore durante la ricerca: ' + error);
+        }
+    });
+}
+
+function displayAnswer(response) {
+    // Answer text
+    $('#answer-text').html(response.answer.replace(/\n/g, '<br>'));
+
+    // Confidence
+    const confidence = response.confidence * 100;
+    $('#confidence-fill').css('width', confidence + '%');
+    $('#confidence-text').text(`${confidence.toFixed(0)}% - ${getConfidenceLabel(response.confidence)}`);
+
+    // Sources
+    let sourcesHtml = '<ul class="list-unstyled">';
+    response.sources.forEach(source => {
+        sourcesHtml += `
+            <li>
+                <i class="fas fa-file text-primary"></i>
+                <strong>${source.filename}</strong>
+                <span class="badge badge-info">${source.score}</span>
+            </li>
+        `;
+    });
+    sourcesHtml += '</ul>';
+    $('#sources-list').html(sourcesHtml);
+
+    // Flow
+    let flowHtml = '';
+    response.flow.forEach((step, index) => {
+        flowHtml += `
+            <div class="flow-step">
+                <strong>${step}</strong>
+            </div>
+        `;
+    });
+    $('#flow-steps').html(flowHtml);
+
+    // Suggestions
+    let suggestionsHtml = '';
+    response.suggestions.forEach(suggestion => {
+        suggestionsHtml += `
+            <button class="btn btn-sm btn-outline-warning m-1 suggestion-btn">
+                <i class="fas fa-arrow-right"></i> ${suggestion}
+            </button>
+        `;
+    });
+    $('#suggestions-list').html(suggestionsHtml);
+
+    // Suggestion click handlers
+    $('.suggestion-btn').on('click', function() {
+        const suggestion = $(this).text().replace('Cerca anche: ', '').trim();
+        $('#search-query').val(suggestion);
+        performSearch(suggestion);
+    });
+
+    $('#answer-section').show();
+}
+
+function displayResults(results) {
+    $('#results-count').text(results.length);
+
+    let html = '';
+    results.forEach((result, index) => {
+        const keywords = result.keywords.slice(0, 5).map(kw =>
+            `<span class="keyword-badge">${kw}</span>`
+        ).join(' ');
+
+        html += `
+            <div class="card search-result mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-file-${getFileIcon(result.extension)} text-primary"></i>
+                        ${result.filename}
+                        <span class="badge badge-primary float-right">${result.score.toFixed(2)}</span>
+                    </h5>
+                    <p class="card-text">
+                        <span class="badge badge-secondary">${result.type}</span>
+                        ${result.extension}
+                    </p>
+                    <div class="highlight">
+                        ${result.highlight}
+                    </div>
+                    <div class="mt-2">
+                        ${keywords}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    $('#results-container').html(html);
+    $('#results-section').show();
+}
+
+function getConfidenceLabel(confidence) {
+    if (confidence >= 0.8) return 'Molto Alta';
+    if (confidence >= 0.6) return 'Alta';
+    if (confidence >= 0.4) return 'Media';
+    if (confidence >= 0.2) return 'Bassa';
+    return 'Molto Bassa';
+}
+
+function getFileIcon(extension) {
+    const icons = {
+        '.pdf': 'pdf',
+        '.doc': 'word',
+        '.docx': 'word',
+        '.xls': 'excel',
+        '.xlsx': 'excel',
+        '.html': 'code',
+        '.md': 'markdown',
+        '.txt': 'alt'
+    };
+    return icons[extension] || 'alt';
+}
+
+function showError(message) {
+    alert('Errore: ' + message);
+}
+</script>
+{% endblock %}

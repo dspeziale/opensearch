@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block page_title %}Carica Documenti{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-upload"></i> Carica Nuovo Documento</h3>
+            </div>
+            <div class="card-body">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="file-input">Seleziona File</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="file-input" required>
+                            <label class="custom-file-label" for="file-input">Scegli file...</label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Formati supportati: PDF, DOC, DOCX, XLS, XLSX, HTML, MD, TXT, CSV (Max 50MB)
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                        <i class="fas fa-cloud-upload-alt"></i> Carica e Indicizza
+                    </button>
+                </form>
+
+                <!-- Progress -->
+                <div id="upload-progress" class="mt-4" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             id="progress-bar"
+                             role="progressbar"
+                             style="width: 0%">
+                            <span id="progress-text">0%</span>
+                        </div>
+                    </div>
+                    <p class="text-center mt-2" id="status-text">Caricamento in corso...</p>
+                </div>
+
+                <!-- Result -->
+                <div id="upload-result" class="mt-4" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="card card-info">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-info-circle"></i> Come Funziona</h3>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li><strong>Seleziona un documento</strong> dal tuo computer</li>
+                    <li><strong>Carica il file</strong> - il sistema lo analizzerà automaticamente</li>
+                    <li><strong>Estrazione contenuto</strong> - il testo viene estratto dal documento</li>
+                    <li><strong>Indicizzazione</strong> - il documento viene indicizzato in OpenSearch</li>
+                    <li><strong>Ricerca</strong> - ora puoi cercare il documento dalla pagina principale</li>
+                </ol>
+
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Elaborazione intelligente:</strong>
+                    Il sistema estrae automaticamente keywords, genera un summary e rende il documento ricercabile con ricerca semantica.
+                </div>
+            </div>
+        </div>
+
+        <!-- Supported Formats -->
+        <div class="card card-secondary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-file-alt"></i> Formati Supportati</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-file-pdf text-danger"></i> <strong>PDF</strong> - Portable Document Format</li>
+                            <li><i class="fas fa-file-word text-primary"></i> <strong>DOC/DOCX</strong> - Microsoft Word</li>
+                            <li><i class="fas fa-file-excel text-success"></i> <strong>XLS/XLSX</strong> - Microsoft Excel</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-file-code text-warning"></i> <strong>HTML</strong> - Pagine Web</li>
+                            <li><i class="fas fa-file-alt text-info"></i> <strong>Markdown</strong> - File .md</li>
+                            <li><i class="fas fa-file text-secondary"></i> <strong>TXT/CSV</strong> - File di testo</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Update file input label
+$('#file-input').on('change', function() {
+    const fileName = $(this).val().split('\\').pop();
+    $(this).siblings('.custom-file-label').addClass('selected').html(fileName);
+});
+
+// Handle upload
+$('#upload-form').on('submit', function(e) {
+    e.preventDefault();
+
+    const fileInput = $('#file-input')[0];
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Seleziona un file');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    // Show progress
+    $('#upload-progress').show();
+    $('#upload-result').hide();
+    $('#progress-bar').css('width', '0%');
+    $('#progress-text').text('0%');
+    $('#status-text').text('Caricamento in corso...');
+
+    // Simulate progress (real progress tracking requires XHR)
+    let progress = 0;
+    const progressInterval = setInterval(function() {
+        if (progress < 90) {
+            progress += 10;
+            $('#progress-bar').css('width', progress + '%');
+            $('#progress-text').text(progress + '%');
+        }
+    }, 200);
+
+    // Upload
+    $.ajax({
+        url: '/api/upload',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            clearInterval(progressInterval);
+            $('#progress-bar').css('width', '100%');
+            $('#progress-text').text('100%');
+
+            if (response.success) {
+                $('#status-text').text('✅ Caricamento completato!');
+
+                setTimeout(function() {
+                    $('#upload-progress').hide();
+
+                    const doc = response.document;
+                    let resultHtml = `
+                        <div class="alert alert-success">
+                            <h4><i class="fas fa-check-circle"></i> Documento indicizzato con successo!</h4>
+                            <hr>
+                            <p><strong>Nome:</strong> ${doc.filename}</p>
+                            <p><strong>Tipo:</strong> ${doc.type}</p>
+                            <p><strong>Dimensione:</strong> ${(doc.size / 1024).toFixed(2)} KB</p>
+                            <p><strong>ID:</strong> <code>${doc.id}</code></p>
+                            <div>
+                                <strong>Keywords estratte:</strong><br>
+                                ${doc.keywords.map(kw => `<span class="badge badge-info">${kw}</span>`).join(' ')}
+                            </div>
+                            <hr>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Vai alla Ricerca
+                            </a>
+                            <button class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-plus"></i> Carica Altro
+                            </button>
+                        </div>
+                    `;
+
+                    $('#upload-result').html(resultHtml).show();
+
+                    // Reset form
+                    $('#upload-form')[0].reset();
+                    $('.custom-file-label').removeClass('selected').html('Scegli file...');
+                }, 500);
+            } else {
+                showError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            clearInterval(progressInterval);
+            showError('Errore durante il caricamento: ' + error);
+        }
+    });
+});
+
+function showError(message) {
+    $('#upload-progress').hide();
+
+    const errorHtml = `
+        <div class="alert alert-danger">
+            <h4><i class="fas fa-exclamation-triangle"></i> Errore</h4>
+            <p>${message}</p>
+        </div>
+    `;
+
+    $('#upload-result').html(errorHtml).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+# DocSearch - Sistema di Documentazione Intelligente con OpenSearch
+# Python 3.9+
+
+# Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# OpenSearch
+opensearch-py==2.4.2
+
+# Document Parsing
+PyPDF2==3.0.1
+python-docx==1.1.0
+openpyxl==3.1.2
+pandas==2.1.4
+beautifulsoup4==4.12.2
+lxml==5.0.0
+markdown==3.5.1
+
+# Text Processing
+nltk==3.8.1
+sentence-transformers==2.2.2
+
+# AI/ML for RAG (Retrieval Augmented Generation)
+openai==1.6.1
+langchain==0.1.0
+langchain-openai==0.0.2
+chromadb==0.4.22
+
+# Utilities
+python-magic==0.4.27
+python-dotenv==1.0.0
+Werkzeug==3.0.1
+gunicorn==21.2.0
+
+# Data validation
+pydantic==2.5.3
