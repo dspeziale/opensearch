@@ -260,31 +260,47 @@ def api_upload():
                         # Parse l'allegato
                         att_parsed = parser.parse(att_info['path'])
 
-                        if att_parsed['success']:
-                            # Aggiungi metadata di parent
-                            att_parsed['is_attachment'] = True
-                            att_parsed['parent_document_id'] = index_result['doc_id']
-                            att_parsed['parent_filename'] = filename
+                        # Se il parsing fallisce, crea un documento minimal con metadata
+                        if not att_parsed['success']:
+                            logger.warning(f"Cannot parse {att_info['filename']}, creating minimal document")
+                            att_file_path = Path(att_info['path'])
+                            att_parsed = {
+                                'success': True,
+                                'filename': att_info['filename'],
+                                'extension': att_file_path.suffix.lower(),
+                                'type': f"Binary File ({att_file_path.suffix.upper()})",
+                                'content': f"Binary file: {att_info['filename']} (cannot extract text content)",
+                                'summary': f"File allegato di tipo {att_file_path.suffix.upper()}. Contenuto non testuale.",
+                                'keywords': [att_file_path.suffix.replace('.', ''), 'allegato', 'binary'],
+                                'metadata': {
+                                    'path': att_info['path'],
+                                    'size': att_info['size'],
+                                    'created_at': datetime.now().isoformat()
+                                }
+                            }
 
-                            # Copia tags dal parent se l'allegato non ne ha
-                            if not att_parsed.get('tags'):
-                                att_parsed['tags'] = parsed_doc.get('tags', [])
+                        # Aggiungi metadata di parent
+                        att_parsed['is_attachment'] = True
+                        att_parsed['parent_document_id'] = index_result['doc_id']
+                        att_parsed['parent_filename'] = filename
 
-                            # Indicizza l'allegato
-                            att_index_result = opensearch.index_document(att_parsed)
+                        # Copia tags dal parent se l'allegato non ne ha
+                        if not att_parsed.get('tags'):
+                            att_parsed['tags'] = parsed_doc.get('tags', [])
 
-                            if att_index_result['success']:
-                                extracted_attachments.append({
-                                    'filename': att_info['filename'],
-                                    'id': att_index_result['doc_id'],
-                                    'type': att_parsed['type'],
-                                    'size': att_info['size']
-                                })
-                                logger.info(f"✅ Indexed attachment: {att_info['filename']}")
-                            else:
-                                logger.error(f"Failed to index attachment: {att_info['filename']}")
+                        # Indicizza l'allegato
+                        att_index_result = opensearch.index_document(att_parsed)
+
+                        if att_index_result['success']:
+                            extracted_attachments.append({
+                                'filename': att_info['filename'],
+                                'id': att_index_result['doc_id'],
+                                'type': att_parsed['type'],
+                                'size': att_info['size']
+                            })
+                            logger.info(f"✅ Indexed attachment: {att_info['filename']}")
                         else:
-                            logger.warning(f"Failed to parse attachment: {att_info['filename']}")
+                            logger.error(f"Failed to index attachment: {att_info['filename']}")
 
                     except Exception as e:
                         logger.error(f"Error processing attachment {att_info['filename']}: {e}")
