@@ -1,6 +1,6 @@
 """
 DocSearch - Document Parser
-Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT
+Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT, MSG, PST
 """
 
 import os
@@ -25,6 +25,23 @@ from bs4 import BeautifulSoup
 # Markdown
 import markdown
 
+# Outlook
+try:
+    import extract_msg
+    MSG_AVAILABLE = True
+except ImportError:
+    MSG_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("extract-msg not available. .msg files will not be supported.")
+
+try:
+    import pypff
+    PST_AVAILABLE = True
+except ImportError:
+    PST_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("pypff not available. .pst files will not be supported.")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -42,7 +59,9 @@ class DocumentParser:
         '.htm': 'HTML Document',
         '.md': 'Markdown Document',
         '.txt': 'Text Document',
-        '.csv': 'CSV File'
+        '.csv': 'CSV File',
+        '.msg': 'Outlook Message',
+        '.pst': 'Outlook Archive'
     }
 
     def __init__(self):
@@ -56,7 +75,9 @@ class DocumentParser:
             '.html': self._parse_html,
             '.htm': self._parse_html,
             '.md': self._parse_markdown,
-            '.txt': self._parse_text
+            '.txt': self._parse_text,
+            '.msg': self._parse_msg,
+            '.pst': self._parse_pst
         }
 
     def parse(self, file_path: str) -> Dict:
@@ -296,6 +317,140 @@ class DocumentParser:
             summary = summary[:last_period + 1]
 
         return summary
+
+    def _parse_msg(self, file_path: Path) -> str:
+        """Estrae testo da file Outlook MSG"""
+        if not MSG_AVAILABLE:
+            raise ImportError("extract-msg library not available. Install with: pip install extract-msg")
+
+        text = []
+
+        try:
+            msg = extract_msg.Message(str(file_path))
+
+            # Header
+            text.append("=== EMAIL MESSAGE ===\n")
+
+            # From
+            if msg.sender:
+                text.append(f"From: {msg.sender}")
+
+            # To
+            if msg.to:
+                text.append(f"To: {msg.to}")
+
+            # CC
+            if msg.cc:
+                text.append(f"CC: {msg.cc}")
+
+            # Subject
+            if msg.subject:
+                text.append(f"Subject: {msg.subject}")
+
+            # Date
+            if msg.date:
+                text.append(f"Date: {msg.date}")
+
+            text.append("\n--- Body ---\n")
+
+            # Body (prova prima HTML, poi plain text)
+            if msg.htmlBody:
+                # Parse HTML body
+                soup = BeautifulSoup(msg.htmlBody, 'html.parser')
+                body_text = soup.get_text()
+                text.append(body_text)
+            elif msg.body:
+                text.append(msg.body)
+
+            # Attachments info
+            if msg.attachments:
+                text.append(f"\n--- Attachments ({len(msg.attachments)}) ---")
+                for i, attachment in enumerate(msg.attachments, 1):
+                    att_name = getattr(attachment, 'longFilename', None) or getattr(attachment, 'shortFilename', 'unknown')
+                    text.append(f"{i}. {att_name}")
+
+            msg.close()
+
+        except Exception as e:
+            logger.error(f"Error parsing MSG file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_pst(self, file_path: Path) -> str:
+        """Estrae testo da file Outlook PST (archivio)"""
+        if not PST_AVAILABLE:
+            raise ImportError("pypff library not available. Install with: pip install pypff")
+
+        text = []
+
+        try:
+            pst = pypff.file()
+            pst.open(str(file_path))
+
+            text.append("=== OUTLOOK PST ARCHIVE ===\n")
+
+            root = pst.get_root_folder()
+            text.append(f"Root Folder: {root.name if hasattr(root, 'name') else 'PST Archive'}")
+            text.append(f"Number of sub-folders: {root.get_number_of_sub_folders()}")
+
+            # Funzione ricorsiva per processare folders
+            def process_folder(folder, depth=0, max_emails=50):
+                """Processa una cartella ricorsivamente (limitato a max_emails per performance)"""
+                indent = "  " * depth
+                folder_name = folder.name if hasattr(folder, 'name') else 'Unknown'
+
+                text.append(f"\n{indent}📁 Folder: {folder_name}")
+
+                # Processa messaggi nella cartella (max 50)
+                emails_processed = 0
+                for i in range(folder.get_number_of_sub_messages()):
+                    if emails_processed >= max_emails:
+                        text.append(f"{indent}  ... (more emails not shown)")
+                        break
+
+                    try:
+                        message = folder.get_sub_message(i)
+
+                        # Estrai info base
+                        subject = message.get_subject() if hasattr(message, 'get_subject') else 'No Subject'
+                        sender = message.get_sender_name() if hasattr(message, 'get_sender_name') else 'Unknown'
+
+                        text.append(f"{indent}  📧 [{i+1}] {subject}")
+                        text.append(f"{indent}      From: {sender}")
+
+                        # Body (solo primi 500 caratteri per performance)
+                        if hasattr(message, 'get_plain_text_body'):
+                            body = message.get_plain_text_body()
+                            if body:
+                                body_preview = body[:500].strip()
+                                text.append(f"{indent}      Body: {body_preview}...")
+
+                        emails_processed += 1
+
+                    except Exception as e:
+                        logger.warning(f"Error processing message {i}: {e}")
+                        continue
+
+                # Processa sub-folders ricorsivamente
+                for j in range(folder.get_number_of_sub_folders()):
+                    try:
+                        sub_folder = folder.get_sub_folder(j)
+                        process_folder(sub_folder, depth + 1, max_emails)
+                    except Exception as e:
+                        logger.warning(f"Error processing sub-folder {j}: {e}")
+                        continue
+
+            # Processa tutto
+            process_folder(root)
+
+            pst.close()
+
+        except Exception as e:
+            logger.error(f"Error parsing PST file: {e}")
+            raise
+
+        return '\n'.join(text)
 
 
 # Test

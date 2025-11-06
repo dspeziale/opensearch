@@ -138,6 +138,8 @@ docsearch/
 | **HTML** | `.html`, `.htm` | Pagine Web |
 | **Markdown** | `.md` | Markdown |
 | **Text** | `.txt` | Plain Text |
+| **Outlook** | `.msg` | Singoli messaggi email Outlook |
+| **Outlook** | `.pst` | Archivi Outlook (inbox, folders) |
 
 ## 🎯 Come Funziona
 
