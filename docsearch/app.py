@@ -97,7 +97,8 @@ def api_search():
     {
         "query": "come installare opensearch",
         "size": 10,
-        "use_rag": true
+        "use_rag": true,
+        "tag_filter": "manuale"  // opzionale
     }
     """
     try:
@@ -105,6 +106,7 @@ def api_search():
         query = data.get('query', '').strip()
         size = data.get('size', 10)
         use_rag = data.get('use_rag', True)
+        tag_filter = data.get('tag_filter', '').strip()
 
         if not query:
             return jsonify({
@@ -112,10 +114,15 @@ def api_search():
                 'error': 'Query is required'
             }), 400
 
-        logger.info(f"🔍 Search: {query}")
+        logger.info(f"🔍 Search: {query}" + (f" [tag: {tag_filter}]" if tag_filter else ""))
+
+        # Prepara filtri
+        filters = {}
+        if tag_filter:
+            filters['tags'] = tag_filter
 
         # Cerca in OpenSearch
-        search_results = opensearch.search(query, size=size)
+        search_results = opensearch.search(query, size=size, filters=filters if filters else None)
 
         if not search_results['success']:
             return jsonify(search_results), 500
@@ -205,6 +212,15 @@ def api_upload():
                 'error': f"Failed to parse document: {parsed_doc.get('error')}"
             }), 500
 
+        # Aggiungi tags se presenti
+        tags_input = request.form.get('tags', '').strip()
+        if tags_input:
+            # Split per virgola e pulisci
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            parsed_doc['tags'] = tags
+        else:
+            parsed_doc['tags'] = []
+
         # Indicizza in OpenSearch
         index_result = opensearch.index_document(parsed_doc)
 
@@ -224,7 +240,8 @@ def api_upload():
                 'filename': filename,
                 'type': parsed_doc['type'],
                 'size': parsed_doc['metadata']['size'],
-                'keywords': parsed_doc['keywords'][:10]
+                'keywords': parsed_doc['keywords'][:10],
+                'tags': parsed_doc.get('tags', [])
             }
         })
 
@@ -349,6 +366,27 @@ def api_statistics():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/api/tags', methods=['GET'])
+def api_tags():
+    """
+    API per ottenere tutti i tags disponibili
+
+    GET /api/tags
+    """
+    try:
+        tags_data = opensearch.get_all_tags()
+
+        return jsonify(tags_data)
+
+    except Exception as e:
+        logger.error(f"Tags error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'tags': []
         }), 500
 
 

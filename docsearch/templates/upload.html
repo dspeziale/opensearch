@@ -22,6 +22,17 @@
                         </small>
                     </div>
 
+                    <div class="form-group">
+                        <label for="tags-input">
+                            <i class="fas fa-tags"></i> Tags (opzionale)
+                        </label>
+                        <input type="text" class="form-control" id="tags-input"
+                               placeholder="Es: manuale, guida, tutorial (separati da virgola)">
+                        <small class="form-text text-muted">
+                            Aggiungi tags per categorizzare il documento. Separa i tag con virgole.
+                        </small>
+                    </div>
+
                     <button type="submit" class="btn btn-primary btn-lg btn-block">
                         <i class="fas fa-cloud-upload-alt"></i> Carica e Indicizza
                     </button>
@@ -116,6 +127,12 @@ $('#upload-form').on('submit', function(e) {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
 
+    // Aggiungi tags se presenti
+    const tagsInput = $('#tags-input').val().trim();
+    if (tagsInput) {
+        formData.append('tags', tagsInput);
+    }
+
     // Show progress
     $('#upload-progress').show();
     $('#upload-result').hide();
@@ -152,6 +169,16 @@ $('#upload-form').on('submit', function(e) {
                     $('#upload-progress').hide();
 
                     const doc = response.document;
+                    let tagsHtml = '';
+                    if (doc.tags && doc.tags.length > 0) {
+                        tagsHtml = `
+                            <div class="mt-2">
+                                <strong>Tags:</strong><br>
+                                ${doc.tags.map(tag => `<span class="badge badge-success">${tag}</span>`).join(' ')}
+                            </div>
+                        `;
+                    }
+
                     let resultHtml = `
                         <div class="alert alert-success">
                             <h4><i class="fas fa-check-circle"></i> Documento indicizzato con successo!</h4>
@@ -164,6 +191,7 @@ $('#upload-form').on('submit', function(e) {
                                 <strong>Keywords estratte:</strong><br>
                                 ${doc.keywords.map(kw => `<span class="badge badge-info">${kw}</span>`).join(' ')}
                             </div>
+                            ${tagsHtml}
                             <hr>
                             <a href="/" class="btn btn-primary">
                                 <i class="fas fa-search"></i> Vai alla Ricerca

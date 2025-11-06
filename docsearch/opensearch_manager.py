@@ -112,6 +112,9 @@ class OpenSearchManager:
                     'keywords': {
                         'type': 'keyword'
                     },
+                    'tags': {
+                        'type': 'keyword'
+                    },
                     'metadata': {
                         'type': 'object',
                         'enabled': True
@@ -158,6 +161,7 @@ class OpenSearchManager:
                 'content': parsed_doc['content'],
                 'summary': parsed_doc.get('summary', ''),
                 'keywords': parsed_doc.get('keywords', []),
+                'tags': parsed_doc.get('tags', []),
                 'metadata': parsed_doc.get('metadata', {}),
                 'indexed_at': datetime.utcnow().isoformat(),
                 'file_size': parsed_doc['metadata'].get('size', 0),
@@ -220,9 +224,12 @@ class OpenSearchManager:
             }
         """
         try:
-            # Query multi-field con boost
-            search_body = {
-                'query': {
+            # Se query è vuota o "*", usa match_all
+            if not query or query.strip() == '*':
+                query_clause = {'match_all': {}}
+            else:
+                # Query multi-field con boost
+                query_clause = {
                     'bool': {
                         'should': [
                             {
@@ -232,7 +239,8 @@ class OpenSearchManager:
                                         'content^1',
                                         'filename^3',
                                         'summary^2',
-                                        'keywords^2'
+                                        'keywords^2',
+                                        'tags^2'
                                     ],
                                     'type': 'best_fields',
                                     'fuzziness': 'AUTO'
@@ -241,7 +249,24 @@ class OpenSearchManager:
                         ],
                         'minimum_should_match': 1
                     }
-                },
+                }
+
+            # Aggiungi filtri se presenti
+            if filters:
+                filter_clauses = []
+                for field, value in filters.items():
+                    filter_clauses.append({'term': {field: value}})
+
+                # Wrappa tutto in un bool con filtri
+                query_clause = {
+                    'bool': {
+                        'must': query_clause if not query or query.strip() == '*' else [query_clause],
+                        'filter': filter_clauses
+                    }
+                }
+
+            search_body = {
+                'query': query_clause,
                 'highlight': {
                     'fields': {
                         'content': {
@@ -253,16 +278,11 @@ class OpenSearchManager:
                     'pre_tags': ['<mark>'],
                     'post_tags': ['</mark>']
                 },
-                'size': size
+                'size': size,
+                'sort': [
+                    {'indexed_at': {'order': 'desc'}}
+                ]
             }
-
-            # Aggiungi filtri se presenti
-            if filters:
-                filter_clauses = []
-                for field, value in filters.items():
-                    filter_clauses.append({'term': {field: value}})
-
-                search_body['query']['bool']['filter'] = filter_clauses
 
             # Esegui ricerca
             response = self.client.search(
@@ -288,9 +308,10 @@ class OpenSearchManager:
                     'filename': source['filename'],
                     'type': source['type'],
                     'extension': source['extension'],
-                    'score': hit['_score'],
+                    'score': hit.get('_score', 1.0),
                     'summary': source.get('summary', ''),
                     'keywords': source.get('keywords', []),
+                    'tags': source.get('tags', []),
                     'highlight': highlight_text or source.get('summary', '')[:300],
                     'indexed_at': source.get('indexed_at', ''),
                     'file_path': source.get('file_path', '')
@@ -392,6 +413,57 @@ class OpenSearchManager:
                 'total_size': 0,
                 'by_type': {},
                 'by_extension': {}
+            }
+
+    def get_all_tags(self) -> Dict:
+        """
+        Ottieni tutti i tags disponibili con conteggio documenti
+
+        Returns:
+            {
+                'success': bool,
+                'tags': [
+                    {'tag': str, 'count': int},
+                    ...
+                ]
+            }
+        """
+        try:
+            agg_body = {
+                'size': 0,
+                'aggs': {
+                    'all_tags': {
+                        'terms': {
+                            'field': 'tags',
+                            'size': 100,  # Max 100 tags diversi
+                            'order': {'_count': 'desc'}
+                        }
+                    }
+                }
+            }
+
+            response = self.client.search(
+                index=self.index_name,
+                body=agg_body
+            )
+
+            tags = []
+            for bucket in response['aggregations']['all_tags']['buckets']:
+                tags.append({
+                    'tag': bucket['key'],
+                    'count': bucket['doc_count']
+                })
+
+            return {
+                'success': True,
+                'tags': tags
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting tags: {e}")
+            return {
+                'success': False,
+                'tags': []
             }
 
     def delete_document(self, doc_id: str) -> bool:
