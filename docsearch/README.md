@@ -138,8 +138,40 @@ docsearch/
 | **HTML** | `.html`, `.htm` | Pagine Web |
 | **Markdown** | `.md` | Markdown |
 | **Text** | `.txt` | Plain Text |
-| **Outlook** | `.msg` | Singoli messaggi email Outlook |
+| **Outlook** | `.msg` | Singoli messaggi email Outlook con **estrazione automatica allegati** |
 | **Outlook** | `.pst` | Archivi Outlook (inbox, folders) |
+
+## 📎 Estrazione Automatica Allegati
+
+**Nuova Funzionalità!** Il sistema estrae automaticamente e indicizza gli allegati dai file `.msg` Outlook.
+
+### Come Funziona:
+
+1. **Upload file .msg** - Carica un messaggio Outlook con allegati
+2. **Estrazione automatica** - Il sistema estrae tutti gli allegati dal messaggio
+3. **Parsing intelligente** - Ogni allegato viene parsato secondo il suo formato
+4. **Indicizzazione** - Gli allegati diventano documenti separati ricercabili
+5. **Linking** - Gli allegati mantengono un link al messaggio parent
+
+### Vantaggi:
+
+- ✅ **Ricerca completa** - Cerca contenuti anche negli allegati
+- ✅ **Tags automatici** - Gli allegati ereditano i tags del parent
+- ✅ **Download diretto** - Scarica allegati dal sistema
+- ✅ **Visualizzazione** - Vedi tutti gli allegati nella UI
+- ✅ **Metadata** - Ogni allegato mostra da quale .msg proviene
+
+### Esempio:
+
+```
+Upload: "Report_Mensile.msg" con 3 allegati:
+  ├─ Vendite_Q1.xlsx
+  ├─ Analisi.pdf
+  └─ Commenti.docx
+
+Risultato: 4 documenti indicizzati (1 .msg + 3 allegati)
+Tutti ricercabili indipendentemente!
+```
 
 ## 🎯 Come Funziona
 
@@ -310,6 +342,22 @@ DELETE /api/document/<doc_id>
 ```bash
 GET /api/statistics
 ```
+
+### Allegati Documento
+
+```bash
+GET /api/document/<doc_id>/attachments
+```
+
+Ritorna la lista di tutti gli allegati per un documento.
+
+### Download Documento/Allegato
+
+```bash
+GET /api/download/<doc_id>
+```
+
+Scarica un documento o allegato dal sistema.
 
 ## 🎨 Personalizzazione UI
 
