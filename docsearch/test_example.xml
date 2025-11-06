@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<documentation>
+    <title>Guida OpenSearch DocSearch</title>
+    <version>1.0</version>
+    <author>DocSearch Team</author>
+
+    <section id="intro">
+        <heading>Introduzione</heading>
+        <content>
+            DocSearch è un sistema di documentazione intelligente basato su OpenSearch.
+            Permette di indicizzare e ricercare documenti di vario formato.
+        </content>
+        <keywords>
+            <keyword>opensearch</keyword>
+            <keyword>documentazione</keyword>
+            <keyword>ricerca</keyword>
+        </keywords>
+    </section>
+
+    <section id="features">
+        <heading>Funzionalità Principali</heading>
+        <features>
+            <feature priority="high">
+                <name>Ricerca Full-Text</name>
+                <description>Ricerca avanzata su tutti i documenti indicizzati</description>
+            </feature>
+            <feature priority="high">
+                <name>RAG Engine</name>
+                <description>Generazione di risposte intelligenti basate sui documenti</description>
+            </feature>
+            <feature priority="medium">
+                <name>Estrazione Allegati</name>
+                <description>Estrazione automatica allegati da file MSG Outlook</description>
+            </feature>
+            <feature priority="medium">
+                <name>Tag System</name>
+                <description>Categorizzazione documenti tramite tags</description>
+            </feature>
+        </features>
+    </section>
+
+    <section id="formats">
+        <heading>Formati Supportati</heading>
+        <formats>
+            <format>
+                <extension>.pdf</extension>
+                <type>PDF Document</type>
+                <parser>PyPDF2</parser>
+            </format>
+            <format>
+                <extension>.docx</extension>
+                <type>Word Document</type>
+                <parser>python-docx</parser>
+            </format>
+            <format>
+                <extension>.xlsx</extension>
+                <type>Excel Spreadsheet</type>
+                <parser>pandas + openpyxl</parser>
+            </format>
+            <format>
+                <extension>.xml</extension>
+                <type>XML Document</type>
+                <parser>xml.etree.ElementTree</parser>
+            </format>
+        </formats>
+    </section>
+
+    <section id="installation">
+        <heading>Installazione</heading>
+        <steps>
+            <step number="1">Clone il repository</step>
+            <step number="2">Installa le dipendenze con pip install -r requirements.txt</step>
+            <step number="3">Avvia OpenSearch con docker-compose up -d</step>
+            <step number="4">Lancia l'applicazione con python app.py</step>
+        </steps>
+    </section>
+
+    <configuration>
+        <database>
+            <host>localhost</host>
+            <port>9200</port>
+            <index>documents</index>
+        </database>
+        <settings>
+            <max_file_size>52428800</max_file_size> <!-- 50MB -->
+            <debug_mode>true</debug_mode>
+            <rag_enabled>true</rag_enabled>
+        </settings>
+    </configuration>
+</documentation>

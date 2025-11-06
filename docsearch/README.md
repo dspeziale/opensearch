@@ -138,6 +138,7 @@ docsearch/
 | **HTML** | `.html`, `.htm` | Pagine Web |
 | **Markdown** | `.md` | Markdown |
 | **Text** | `.txt` | Plain Text |
+| **XML** | `.xml` | Documenti XML strutturati (config, dati, SOAP, etc.) |
 | **Outlook** | `.msg` | Singoli messaggi email Outlook con **estrazione automatica allegati** |
 | **Outlook** | `.pst` | Archivi Outlook (inbox, folders) |
 

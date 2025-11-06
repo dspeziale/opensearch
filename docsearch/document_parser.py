@@ -1,6 +1,6 @@
 """
 DocSearch - Document Parser
-Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT, MSG, PST
+Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT, XML, MSG, PST
 """
 
 import os
@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 import logging
+import xml.etree.ElementTree as ET
 
 # PDF
 import PyPDF2
@@ -60,6 +61,7 @@ class DocumentParser:
         '.md': 'Markdown Document',
         '.txt': 'Text Document',
         '.csv': 'CSV File',
+        '.xml': 'XML Document',
         '.msg': 'Outlook Message',
         '.pst': 'Outlook Archive'
     }
@@ -76,6 +78,7 @@ class DocumentParser:
             '.htm': self._parse_html,
             '.md': self._parse_markdown,
             '.txt': self._parse_text,
+            '.xml': self._parse_xml,
             '.msg': self._parse_msg,
             '.pst': self._parse_pst
         }
@@ -264,6 +267,85 @@ class DocumentParser:
         """Estrae testo da file di testo"""
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
+
+    def _parse_xml(self, file_path: Path) -> str:
+        """Estrae testo e struttura da file XML"""
+        try:
+            # Parse XML
+            tree = ET.parse(str(file_path))
+            root = tree.getroot()
+
+            text_parts = []
+
+            # Header con info sul root element
+            text_parts.append(f"=== XML DOCUMENT ===")
+            text_parts.append(f"Root Element: <{root.tag}>")
+
+            # Namespace (se presente)
+            namespace = root.tag.split('}')[0].strip('{') if '}' in root.tag else None
+            if namespace:
+                text_parts.append(f"Namespace: {namespace}")
+
+            text_parts.append("")
+
+            # Funzione ricorsiva per estrarre tutto il testo
+            def extract_text_recursive(element, level=0):
+                """Estrae testo da elemento XML ricorsivamente"""
+                indent = "  " * level
+                parts = []
+
+                # Tag name (senza namespace per leggibilità)
+                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+
+                # Attributi
+                if element.attrib:
+                    attrs = ', '.join([f"{k}='{v}'" for k, v in element.attrib.items()])
+                    parts.append(f"{indent}<{tag} {attrs}>")
+                else:
+                    parts.append(f"{indent}<{tag}>")
+
+                # Testo diretto
+                if element.text and element.text.strip():
+                    parts.append(f"{indent}  {element.text.strip()}")
+
+                # Ricorsione sui figli
+                for child in element:
+                    parts.extend(extract_text_recursive(child, level + 1))
+
+                # Tail text (testo dopo il tag di chiusura)
+                if element.tail and element.tail.strip():
+                    parts.append(f"{indent}{element.tail.strip()}")
+
+                return parts
+
+            # Estrai tutta la struttura
+            xml_structure = extract_text_recursive(root)
+            text_parts.extend(xml_structure)
+
+            # Aggiungi anche una sezione con solo il testo (per ricerca)
+            text_parts.append("\n=== TEXT CONTENT ONLY ===")
+
+            def get_all_text(element):
+                """Estrae solo il testo, senza struttura"""
+                texts = []
+                if element.text and element.text.strip():
+                    texts.append(element.text.strip())
+                for child in element:
+                    texts.extend(get_all_text(child))
+                if element.tail and element.tail.strip():
+                    texts.append(element.tail.strip())
+                return texts
+
+            all_text = get_all_text(root)
+            text_parts.extend(all_text)
+
+            return '\n'.join(text_parts)
+
+        except ET.ParseError as e:
+            # Se il parsing XML fallisce, prova a leggere come testo
+            logger.warning(f"XML parsing failed for {file_path.name}: {e}, reading as plain text")
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f"=== XML (parsed as text) ===\n{f.read()}"
 
     def _extract_keywords(self, text: str, max_keywords: int = 20) -> List[str]:
         """
