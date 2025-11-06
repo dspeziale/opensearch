@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Mario Rossi",
+    "email": "mario.rossi@example.com",
+    "department": "IT",
+    "salary": 50000,
+    "hire_date": "2023-01-15"
+  },
+  {
+    "id": 2,
+    "name": "Laura Bianchi",
+    "email": "laura.bianchi@example.com",
+    "department": "HR",
+    "salary": 45000,
+    "hire_date": "2023-03-20"
+  },
+  {
+    "id": 3,
+    "name": "Giuseppe Verdi",
+    "email": "giuseppe.verdi@example.com",
+    "department": "Sales",
+    "salary": 55000,
+    "hire_date": "2022-11-10"
+  },
+  {
+    "id": 4,
+    "name": "Francesca Neri",
+    "email": "francesca.neri@example.com",
+    "department": "Marketing",
+    "salary": 48000,
+    "hire_date": "2023-05-08"
+  },
+  {
+    "id": 5,
+    "name": "Alessandro Conti",
+    "email": "alessandro.conti@example.com",
+    "department": "IT",
+    "salary": 52000,
+    "hire_date": "2023-02-14"
+  }
+]

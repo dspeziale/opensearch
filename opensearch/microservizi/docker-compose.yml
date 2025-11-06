@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mssql-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mssql-uploader-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Configurazione MSSQL
+      - MSSQL_SERVER=${MSSQL_SERVER:-localhost}
+      - MSSQL_DATABASE=${MSSQL_DATABASE:-testdb}
+      - MSSQL_USERNAME=${MSSQL_USERNAME:-sa}
+      - MSSQL_PASSWORD=${MSSQL_PASSWORD}
+      - MSSQL_PORT=${MSSQL_PORT:-1433}
+      # Configurazione API
+      - API_PORT=8000
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - mssql-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Opzionale: SQL Server locale per testing
+  mssql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql-test-server
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${MSSQL_PASSWORD:-YourStrong!Passw0rd}
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    networks:
+      - mssql-network
+    profiles:
+      - testing
+
+networks:
+  mssql-network:
+    driver: bridge
+
+volumes:
+  mssql-data:
