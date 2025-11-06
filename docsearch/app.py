@@ -232,7 +232,64 @@ def api_upload():
 
         logger.info(f"✅ Document indexed: {filename}")
 
-        return jsonify({
+        # Se è un file .msg, estrai e indicizza gli allegati
+        extracted_attachments = []
+        if file_ext == '.msg':
+            logger.info(f"📎 Extracting attachments from {filename}...")
+
+            # Crea directory per gli allegati
+            attachments_dir = UPLOAD_FOLDER / 'attachments' / timestamp
+            attachments_dir.mkdir(parents=True, exist_ok=True)
+
+            # Estrai allegati
+            attachments_info = parser.extract_msg_attachments(
+                str(file_path),
+                str(attachments_dir)
+            )
+
+            if attachments_info:
+                logger.info(f"Found {len(attachments_info)} attachments in {filename}")
+
+                # Processa ogni allegato
+                for att_info in attachments_info:
+                    if not att_info['success']:
+                        logger.warning(f"Skipping failed attachment: {att_info.get('filename', 'unknown')}")
+                        continue
+
+                    try:
+                        # Parse l'allegato
+                        att_parsed = parser.parse(att_info['path'])
+
+                        if att_parsed['success']:
+                            # Aggiungi metadata di parent
+                            att_parsed['is_attachment'] = True
+                            att_parsed['parent_document_id'] = index_result['doc_id']
+                            att_parsed['parent_filename'] = filename
+
+                            # Copia tags dal parent se l'allegato non ne ha
+                            if not att_parsed.get('tags'):
+                                att_parsed['tags'] = parsed_doc.get('tags', [])
+
+                            # Indicizza l'allegato
+                            att_index_result = opensearch.index_document(att_parsed)
+
+                            if att_index_result['success']:
+                                extracted_attachments.append({
+                                    'filename': att_info['filename'],
+                                    'id': att_index_result['doc_id'],
+                                    'type': att_parsed['type'],
+                                    'size': att_info['size']
+                                })
+                                logger.info(f"✅ Indexed attachment: {att_info['filename']}")
+                            else:
+                                logger.error(f"Failed to index attachment: {att_info['filename']}")
+                        else:
+                            logger.warning(f"Failed to parse attachment: {att_info['filename']}")
+
+                    except Exception as e:
+                        logger.error(f"Error processing attachment {att_info['filename']}: {e}")
+
+        response_data = {
             'success': True,
             'message': 'Document uploaded and indexed successfully',
             'document': {
@@ -243,7 +300,14 @@ def api_upload():
                 'keywords': parsed_doc['keywords'][:10],
                 'tags': parsed_doc.get('tags', [])
             }
-        })
+        }
+
+        # Aggiungi info sugli allegati se presenti
+        if extracted_attachments:
+            response_data['attachments'] = extracted_attachments
+            response_data['message'] = f"Document uploaded with {len(extracted_attachments)} attachment(s) indexed"
+
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Upload error: {e}")
@@ -387,6 +451,76 @@ def api_tags():
             'success': False,
             'error': str(e),
             'tags': []
+        }), 500
+
+
+@app.route('/api/document/<doc_id>/attachments', methods=['GET'])
+def api_document_attachments(doc_id):
+    """
+    API per ottenere gli allegati di un documento
+
+    GET /api/document/<doc_id>/attachments
+    """
+    try:
+        attachments = opensearch.get_attachments_for_document(doc_id)
+
+        return jsonify({
+            'success': True,
+            'document_id': doc_id,
+            'attachments': attachments,
+            'count': len(attachments)
+        })
+
+    except Exception as e:
+        logger.error(f"Attachments error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'attachments': []
+        }), 500
+
+
+@app.route('/api/download/<doc_id>', methods=['GET'])
+def api_download_document(doc_id):
+    """
+    API per scaricare un documento o allegato
+
+    GET /api/download/<doc_id>
+    """
+    try:
+        document = opensearch.get_document(doc_id)
+
+        if not document:
+            return jsonify({
+                'success': False,
+                'error': 'Document not found'
+            }), 404
+
+        file_path = document.get('file_path', '')
+
+        if not file_path or not Path(file_path).exists():
+            return jsonify({
+                'success': False,
+                'error': 'File not found on disk'
+            }), 404
+
+        # Ottieni directory e filename
+        file_path_obj = Path(file_path)
+        directory = str(file_path_obj.parent)
+        filename = file_path_obj.name
+
+        return send_from_directory(
+            directory,
+            filename,
+            as_attachment=True,
+            download_name=document['filename']
+        )
+
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 

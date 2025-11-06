@@ -128,6 +128,18 @@ class OpenSearchManager:
                         'fields': {
                             'keyword': {'type': 'keyword'}
                         }
+                    },
+                    'is_attachment': {
+                        'type': 'boolean'
+                    },
+                    'parent_document_id': {
+                        'type': 'keyword'
+                    },
+                    'parent_filename': {
+                        'type': 'text',
+                        'fields': {
+                            'keyword': {'type': 'keyword'}
+                        }
                     }
                 }
             }
@@ -165,7 +177,10 @@ class OpenSearchManager:
                 'metadata': parsed_doc.get('metadata', {}),
                 'indexed_at': datetime.utcnow().isoformat(),
                 'file_size': parsed_doc['metadata'].get('size', 0),
-                'file_path': parsed_doc['metadata'].get('path', '')
+                'file_path': parsed_doc['metadata'].get('path', ''),
+                'is_attachment': parsed_doc.get('is_attachment', False),
+                'parent_document_id': parsed_doc.get('parent_document_id', ''),
+                'parent_filename': parsed_doc.get('parent_filename', '')
             }
 
             # Indicizza
@@ -314,7 +329,10 @@ class OpenSearchManager:
                     'tags': source.get('tags', []),
                     'highlight': highlight_text or source.get('summary', '')[:300],
                     'indexed_at': source.get('indexed_at', ''),
-                    'file_path': source.get('file_path', '')
+                    'file_path': source.get('file_path', ''),
+                    'is_attachment': source.get('is_attachment', False),
+                    'parent_document_id': source.get('parent_document_id', ''),
+                    'parent_filename': source.get('parent_filename', '')
                 })
 
             return {
@@ -465,6 +483,57 @@ class OpenSearchManager:
                 'success': False,
                 'tags': []
             }
+
+    def get_attachments_for_document(self, doc_id: str) -> List[Dict]:
+        """
+        Ottieni tutti gli allegati per un documento specifico
+
+        Args:
+            doc_id: ID del documento parent
+
+        Returns:
+            Lista di allegati
+        """
+        try:
+            search_body = {
+                'query': {
+                    'bool': {
+                        'must': [
+                            {'term': {'is_attachment': True}},
+                            {'term': {'parent_document_id': doc_id}}
+                        ]
+                    }
+                },
+                'size': 100,
+                'sort': [
+                    {'indexed_at': {'order': 'asc'}}
+                ]
+            }
+
+            response = self.client.search(
+                index=self.index_name,
+                body=search_body
+            )
+
+            attachments = []
+            for hit in response['hits']['hits']:
+                source = hit['_source']
+                attachments.append({
+                    'id': hit['_id'],
+                    'filename': source['filename'],
+                    'type': source['type'],
+                    'extension': source['extension'],
+                    'file_size': source.get('file_size', 0),
+                    'file_path': source.get('file_path', ''),
+                    'summary': source.get('summary', ''),
+                    'indexed_at': source.get('indexed_at', '')
+                })
+
+            return attachments
+
+        except Exception as e:
+            logger.error(f"Error getting attachments: {e}")
+            return []
 
     def delete_document(self, doc_id: str) -> bool:
         """Elimina un documento"""

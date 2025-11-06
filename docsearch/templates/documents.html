@@ -185,11 +185,17 @@ function renderDocuments() {
 
         const date = new Date(doc.indexed_at).toLocaleString('it-IT');
 
+        // Badge se è un allegato
+        const attachmentBadge = doc.is_attachment ?
+            `<span class="badge badge-warning ml-1"><i class="fas fa-paperclip"></i> Allegato</span>` : '';
+
         const row = `
             <tr>
                 <td>
                     <i class="fas fa-file-${getFileIcon(doc.extension)} text-primary"></i>
                     <strong>${doc.filename}</strong>
+                    ${attachmentBadge}
+                    ${doc.parent_filename ? `<br><small class="text-muted">Da: ${doc.parent_filename}</small>` : ''}
                 </td>
                 <td><span class="badge badge-info">${doc.type}</span></td>
                 <td>${formatSize(doc.file_size)}</td>
@@ -198,6 +204,9 @@ function renderDocuments() {
                 <td>
                     <button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')">
                         <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="downloadDocument('${doc.id}')">
+                        <i class="fas fa-download"></i>
                     </button>
                     <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.filename}')">
                         <i class="fas fa-trash"></i>
@@ -298,7 +307,18 @@ function showDocumentDetail(doc) {
         `;
     }
 
+    // Badge se è allegato
+    let attachmentInfo = '';
+    if (doc.is_attachment && doc.parent_filename) {
+        attachmentInfo = `
+            <div class="alert alert-info">
+                <i class="fas fa-paperclip"></i> <strong>Allegato estratto da:</strong> ${doc.parent_filename}
+            </div>
+        `;
+    }
+
     const modalContent = `
+        ${attachmentInfo}
         <div class="row">
             <div class="col-md-6">
                 <p><strong>Tipo:</strong> ${doc.type}</p>
@@ -326,10 +346,80 @@ function showDocumentDetail(doc) {
             <strong>Contenuto (anteprima):</strong>
             <pre style="max-height: 300px; overflow-y: auto;">${doc.content.substring(0, 1000)}...</pre>
         </div>
+        <div id="attachments-section">
+            <hr>
+            <div class="d-flex align-items-center">
+                <strong>Allegati:</strong>
+                <div class="spinner-border spinner-border-sm ml-2" role="status">
+                    <span class="sr-only">Caricamento...</span>
+                </div>
+            </div>
+        </div>
     `;
 
     $('#modal-body').html(modalContent);
     $('#doc-modal').modal('show');
+
+    // Carica allegati se non è già un allegato
+    if (!doc.is_attachment) {
+        loadAttachmentsForDocument(doc.id);
+    } else {
+        $('#attachments-section').remove();
+    }
+}
+
+function loadAttachmentsForDocument(docId) {
+    $.ajax({
+        url: `/api/document/${docId}/attachments`,
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.attachments.length > 0) {
+                const attachmentsList = response.attachments.map(att => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-file-${getFileIcon(att.extension)} text-primary"></i>
+                            <strong>${att.filename}</strong>
+                            <br>
+                            <small class="text-muted">${att.type} - ${formatSize(att.file_size)}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-info" onclick="viewDocument('${att.id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="downloadDocument('${att.id}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </li>
+                `).join('');
+
+                $('#attachments-section').html(`
+                    <hr>
+                    <div>
+                        <strong><i class="fas fa-paperclip"></i> Allegati (${response.count}):</strong>
+                        <ul class="list-group mt-2">
+                            ${attachmentsList}
+                        </ul>
+                    </div>
+                `);
+            } else {
+                $('#attachments-section').html(`
+                    <hr>
+                    <div>
+                        <strong>Allegati:</strong> <em class="text-muted">Nessuno</em>
+                    </div>
+                `);
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#attachments-section').html(`
+                <hr>
+                <div>
+                    <strong>Allegati:</strong> <em class="text-danger">Errore durante il caricamento</em>
+                </div>
+            `);
+        }
+    });
 }
 
 function deleteDocument(docId, filename) {
@@ -386,6 +476,11 @@ function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function downloadDocument(docId) {
+    // Open download in new window
+    window.open(`/api/download/${docId}`, '_blank');
 }
 </script>
 {% endblock %}

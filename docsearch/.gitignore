@@ -33,6 +33,7 @@ Thumbs.db
 # Uploads
 static/uploads/*
 !static/uploads/.gitkeep
+static/uploads/attachments/
 
 # Logs
 *.log

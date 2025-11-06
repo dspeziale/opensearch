@@ -181,9 +181,29 @@ $('#upload-form').on('submit', function(e) {
                         `;
                     }
 
+                    // Attachments info
+                    let attachmentsHtml = '';
+                    if (response.attachments && response.attachments.length > 0) {
+                        const attachmentsList = response.attachments.map(att => `
+                            <li>
+                                <i class="fas fa-paperclip"></i> <strong>${att.filename}</strong>
+                                <small class="text-muted">(${att.type}, ${(att.size / 1024).toFixed(2)} KB)</small>
+                            </li>
+                        `).join('');
+
+                        attachmentsHtml = `
+                            <div class="mt-3 p-3 bg-light rounded">
+                                <h5><i class="fas fa-paperclip"></i> Allegati Estratti e Indicizzati (${response.attachments.length})</h5>
+                                <ul class="mb-0">
+                                    ${attachmentsList}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
                     let resultHtml = `
                         <div class="alert alert-success">
-                            <h4><i class="fas fa-check-circle"></i> Documento indicizzato con successo!</h4>
+                            <h4><i class="fas fa-check-circle"></i> ${response.message || 'Documento indicizzato con successo!'}</h4>
                             <hr>
                             <p><strong>Nome:</strong> ${doc.filename}</p>
                             <p><strong>Tipo:</strong> ${doc.type}</p>
@@ -194,6 +214,7 @@ $('#upload-form').on('submit', function(e) {
                                 ${doc.keywords.map(kw => `<span class="badge badge-info">${kw}</span>`).join(' ')}
                             </div>
                             ${tagsHtml}
+                            ${attachmentsHtml}
                             <hr>
                             <a href="/" class="btn btn-primary">
                                 <i class="fas fa-search"></i> Vai alla Ricerca

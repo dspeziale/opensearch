@@ -377,6 +377,112 @@ class DocumentParser:
 
         return '\n'.join(text)
 
+    def extract_msg_attachments(self, file_path: str, output_dir: str) -> List[Dict]:
+        """
+        Estrae gli allegati da un file .msg e li salva in una directory
+
+        Args:
+            file_path: Path al file .msg
+            output_dir: Directory dove salvare gli allegati
+
+        Returns:
+            Lista di dict con info sugli allegati estratti:
+            [
+                {
+                    'filename': str,
+                    'path': str,
+                    'size': int,
+                    'success': bool,
+                    'error': str (optional)
+                }
+            ]
+        """
+        if not MSG_AVAILABLE:
+            logger.warning("extract-msg not available, cannot extract attachments")
+            return []
+
+        attachments_info = []
+        file_path = Path(file_path)
+        output_dir = Path(output_dir)
+
+        # Crea directory output se non esiste
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            msg = extract_msg.Message(str(file_path))
+
+            if not msg.attachments:
+                logger.info(f"No attachments found in {file_path.name}")
+                msg.close()
+                return []
+
+            logger.info(f"Found {len(msg.attachments)} attachments in {file_path.name}")
+
+            for i, attachment in enumerate(msg.attachments):
+                try:
+                    # Get attachment filename
+                    att_name = getattr(attachment, 'longFilename', None) or \
+                               getattr(attachment, 'shortFilename', None) or \
+                               f"attachment_{i+1}"
+
+                    # Sanitize filename
+                    att_name = "".join(c for c in att_name if c.isalnum() or c in '._- ')
+                    att_name = att_name.strip()
+
+                    # Get attachment data
+                    att_data = attachment.data
+
+                    if att_data:
+                        # Save attachment
+                        att_path = output_dir / att_name
+
+                        # Se esiste già, aggiungi numero
+                        counter = 1
+                        original_path = att_path
+                        while att_path.exists():
+                            name_parts = original_path.stem, original_path.suffix
+                            att_path = output_dir / f"{name_parts[0]}_{counter}{name_parts[1]}"
+                            counter += 1
+
+                        with open(att_path, 'wb') as f:
+                            f.write(att_data)
+
+                        attachments_info.append({
+                            'filename': att_name,
+                            'path': str(att_path),
+                            'size': len(att_data),
+                            'success': True
+                        })
+
+                        logger.info(f"✓ Extracted attachment: {att_name} ({len(att_data)} bytes)")
+                    else:
+                        logger.warning(f"✗ No data for attachment: {att_name}")
+                        attachments_info.append({
+                            'filename': att_name,
+                            'path': '',
+                            'size': 0,
+                            'success': False,
+                            'error': 'No data'
+                        })
+
+                except Exception as e:
+                    logger.error(f"Error extracting attachment {i}: {e}")
+                    attachments_info.append({
+                        'filename': f"attachment_{i+1}",
+                        'path': '',
+                        'size': 0,
+                        'success': False,
+                        'error': str(e)
+                    })
+
+            msg.close()
+
+        except Exception as e:
+            logger.error(f"Error processing MSG file for attachments: {e}")
+            return []
+
+        return attachments_info
+
     def _parse_pst(self, file_path: Path) -> str:
         """Estrae testo da file Outlook PST (archivio)"""
         if not PST_AVAILABLE:
