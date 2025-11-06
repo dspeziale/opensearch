@@ -333,30 +333,36 @@ function showDocumentDetail(doc) {
 }
 
 function deleteDocument(docId, filename) {
-    if (!confirm(`Sei sicuro di voler eliminare "${filename}"?`)) {
-        return;
-    }
-
-    $.ajax({
-        url: `/api/document/${docId}`,
-        method: 'DELETE',
-        success: function(response) {
-            if (response.success) {
-                alert('✅ Documento eliminato con successo');
-                loadDocuments();
-            } else {
-                showError(response.error);
-            }
+    showConfirm(
+        `Sei sicuro di voler eliminare "<strong>${filename}</strong>"?<br><small class="text-muted">Questa azione non può essere annullata.</small>`,
+        function() {
+            // User clicked OK
+            $.ajax({
+                url: `/api/document/${docId}`,
+                method: 'DELETE',
+                success: function(response) {
+                    if (response.success) {
+                        showSuccess('Documento eliminato con successo!');
+                        loadDocuments();
+                    } else {
+                        showError(response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showError('Errore durante l\'eliminazione: ' + error);
+                }
+            });
         },
-        error: function(xhr, status, error) {
-            showError('Errore durante l\'eliminazione: ' + error);
+        function() {
+            // User clicked Cancel
+            showInfo('Eliminazione annullata');
         }
-    });
+    );
 }
 
 function applyFilters() {
     // TODO: Implement filters
-    alert('Filtri in via di implementazione');
+    showInfo('Filtri in via di implementazione');
 }
 
 function getFileIcon(extension) {
@@ -380,10 +386,6 @@ function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
     return (bytes / 1024 / 1024).toFixed(2) + ' MB';
-}
-
-function showError(message) {
-    alert('Errore: ' + message);
 }
 </script>
 {% endblock %}

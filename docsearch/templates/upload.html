@@ -122,7 +122,7 @@ $('#upload-form').on('submit', function(e) {
 
     const fileInput = $('#file-input')[0];
     if (!fileInput.files || !fileInput.files[0]) {
-        alert('Seleziona un file');
+        showWarning('Seleziona un file prima di procedere');
         return;
     }
 

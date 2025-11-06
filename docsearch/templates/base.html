@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Font: Source Sans Pro -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+    <!-- Awesome Notifications -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/awesome-notifications@3.1.3/dist/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/awesome-notifications@3.1.3/dist/index.var.js"></script>
 
     <style>
         /* Custom styles */
@@ -167,6 +170,56 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
 <!-- AdminLTE App -->
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
+<!-- Awesome Notifications Init -->
+<script>
+// Initialize Awesome Notifications
+let notifier = new AWN({
+    position: 'top-right',
+    duration: 5000,
+    animationDuration: 300,
+    labels: {
+        tip: 'Suggerimento',
+        info: 'Informazione',
+        success: 'Successo',
+        warning: 'Attenzione',
+        alert: 'Errore',
+        confirm: 'Conferma'
+    }
+});
+
+// Helper functions for notifications
+function showSuccess(message, title = 'Successo') {
+    notifier.success(message);
+}
+
+function showError(message, title = 'Errore') {
+    notifier.alert(message);
+}
+
+function showInfo(message, title = 'Info') {
+    notifier.info(message);
+}
+
+function showWarning(message, title = 'Attenzione') {
+    notifier.warning(message);
+}
+
+function showConfirm(message, onOk, onCancel = null, title = 'Conferma') {
+    notifier.confirm(
+        message,
+        onOk,
+        onCancel || function() {},
+        {
+            labels: {
+                confirm: 'Conferma',
+                confirmOk: 'OK',
+                confirmCancel: 'Annulla'
+            }
+        }
+    );
+}
+</script>
 
 {% block extra_js %}{% endblock %}
 </body>
