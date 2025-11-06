@@ -322,11 +322,12 @@ function displayAnswer(response) {
     // Sources
     let sourcesHtml = '<ul class="list-unstyled">';
     response.sources.forEach(source => {
+        const scoreText = source.score ? source.score : '1.0';
         sourcesHtml += `
             <li>
                 <i class="fas fa-file text-primary"></i>
                 <strong>${source.filename}</strong>
-                <span class="badge badge-info">${source.score}</span>
+                <span class="badge badge-info">${scoreText}</span>
             </li>
         `;
     });
@@ -406,6 +407,9 @@ function displayResults(results) {
         // Data indicizzazione
         const indexedDate = result.indexed_at ? new Date(result.indexed_at).toLocaleString('it-IT') : '';
 
+        // Score (potrebbe essere null)
+        const scoreText = result.score ? result.score.toFixed(2) : '1.0';
+
         html += `
             <div class="card search-result mb-3">
                 <div class="card-body">
@@ -414,7 +418,7 @@ function displayResults(results) {
                             <h5 class="card-title">
                                 <i class="fas fa-file-${getFileIcon(result.extension)} text-primary"></i>
                                 ${result.filename}
-                                <span class="badge badge-primary">${result.score.toFixed(2)}</span>
+                                <span class="badge badge-primary">${scoreText}</span>
                                 ${attachmentBadge}
                             </h5>
                             ${parentInfo}
