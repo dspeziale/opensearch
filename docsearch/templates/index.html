@@ -291,9 +291,14 @@ function performSearch(query) {
         success: function(response) {
             $('#loading').hide();
 
+            console.log('🔍 Search Response:', response);
+            console.log('📄 Results count:', response.results ? response.results.length : 0);
+
             if (response.success) {
                 displayAnswer(response);
                 displayResults(response.results);
+
+                console.log('✅ displayResults chiamato con', response.results.length, 'documenti');
             } else {
                 showError(response.error);
             }
@@ -361,15 +366,20 @@ function displayAnswer(response) {
 }
 
 function displayResults(results) {
+    console.log('📋 displayResults() chiamata con:', results);
+    console.log('📊 Numero documenti:', results.length);
+
     $('#results-count').text(results.length);
 
     if (results.length === 0) {
+        console.log('⚠️ Nessun risultato - mostrando alert');
         $('#results-container').html(`
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> Nessun documento trovato per questa ricerca.
             </div>
         `);
         $('#results-section').show();
+        console.log('✅ results-section mostrata (caso 0 risultati)');
         return;
     }
 
@@ -443,6 +453,7 @@ function displayResults(results) {
     });
 
     $('#results-container').html(html);
+    console.log('✅ HTML inserito in #results-container');
 
     // Make tags clickable
     $('.clickable-tag').on('click', function() {
@@ -456,6 +467,8 @@ function displayResults(results) {
     });
 
     $('#results-section').show();
+    console.log('✅ #results-section mostrata!');
+    console.log('✅ La sezione dovrebbe essere visibile ora');
 }
 
 function viewDocument(docId) {
