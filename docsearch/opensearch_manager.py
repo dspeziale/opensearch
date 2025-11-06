@@ -284,11 +284,13 @@ class OpenSearchManager:
                 'query': query_clause,
                 'highlight': {
                     'fields': {
-                        'content': {
-                            'fragment_size': 150,
-                            'number_of_fragments': 3
+                        # Highlight solo su summary per evitare errori con documenti grandi
+                        # content può essere molto grande (>1MB) e causare errori di highlighting
+                        'summary': {
+                            'fragment_size': 200,
+                            'number_of_fragments': 2
                         },
-                        'summary': {}
+                        'filename': {}
                     },
                     'pre_tags': ['<mark>'],
                     'post_tags': ['</mark>']
@@ -310,13 +312,13 @@ class OpenSearchManager:
             for hit in response['hits']['hits']:
                 source = hit['_source']
 
-                # Estrai highlights
+                # Estrai highlights (solo da summary e filename per performance)
                 highlight_text = ''
                 if 'highlight' in hit:
-                    if 'content' in hit['highlight']:
-                        highlight_text = ' ... '.join(hit['highlight']['content'])
-                    elif 'summary' in hit['highlight']:
-                        highlight_text = hit['highlight']['summary'][0]
+                    if 'summary' in hit['highlight']:
+                        highlight_text = ' ... '.join(hit['highlight']['summary'])
+                    elif 'filename' in hit['highlight']:
+                        highlight_text = f"File: {hit['highlight']['filename'][0]}"
 
                 results.append({
                     'id': hit['_id'],
