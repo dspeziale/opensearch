@@ -97,7 +97,8 @@ def api_search():
     {
         "query": "come installare opensearch",
         "size": 10,
-        "use_rag": true
+        "use_rag": true,
+        "tag_filter": "manuale"  // opzionale
     }
     """
     try:
@@ -105,6 +106,7 @@ def api_search():
         query = data.get('query', '').strip()
         size = data.get('size', 10)
         use_rag = data.get('use_rag', True)
+        tag_filter = data.get('tag_filter', '').strip()
 
         if not query:
             return jsonify({
@@ -112,10 +114,15 @@ def api_search():
                 'error': 'Query is required'
             }), 400
 
-        logger.info(f"🔍 Search: {query}")
+        logger.info(f"🔍 Search: {query}" + (f" [tag: {tag_filter}]" if tag_filter else ""))
+
+        # Prepara filtri
+        filters = {}
+        if tag_filter:
+            filters['tags'] = tag_filter
 
         # Cerca in OpenSearch
-        search_results = opensearch.search(query, size=size)
+        search_results = opensearch.search(query, size=size, filters=filters if filters else None)
 
         if not search_results['success']:
             return jsonify(search_results), 500
@@ -359,6 +366,27 @@ def api_statistics():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+
+@app.route('/api/tags', methods=['GET'])
+def api_tags():
+    """
+    API per ottenere tutti i tags disponibili
+
+    GET /api/tags
+    """
+    try:
+        tags_data = opensearch.get_all_tags()
+
+        return jsonify(tags_data)
+
+    except Exception as e:
+        logger.error(f"Tags error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'tags': []
         }), 500
 
 

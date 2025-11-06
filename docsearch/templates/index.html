@@ -51,6 +51,28 @@
     </div>
 </div>
 
+<!-- Tags Disponibili -->
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-tags"></i> Filtra per Tag</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" id="clear-tag-filter" style="display: none;">
+                        <i class="fas fa-times"></i> Rimuovi Filtro
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="tags-container">
+                    <span class="text-muted">Caricamento tags...</span>
+                </div>
+                <input type="hidden" id="selected-tag">
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Form Ricerca -->
 <div class="row">
     <div class="col-md-12">
@@ -159,6 +181,78 @@
 {% block extra_js %}
 <script>
 let searchCounter = 0;
+let allTags = [];
+
+// Load tags on page load
+$(document).ready(function() {
+    loadTags();
+});
+
+function loadTags() {
+    $.ajax({
+        url: '/api/tags',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.tags.length > 0) {
+                allTags = response.tags;
+                renderTags();
+            } else {
+                $('#tags-container').html('<span class="text-muted"><em>Nessun tag disponibile</em></span>');
+            }
+        },
+        error: function() {
+            $('#tags-container').html('<span class="text-danger"><em>Errore caricamento tags</em></span>');
+        }
+    });
+}
+
+function renderTags() {
+    const selectedTag = $('#selected-tag').val();
+    let html = '';
+
+    allTags.forEach(tag => {
+        const isSelected = tag.tag === selectedTag;
+        const badgeClass = isSelected ? 'badge-primary' : 'badge-success';
+        html += `
+            <button class="btn btn-sm ${badgeClass} m-1 tag-filter-btn" data-tag="${tag.tag}">
+                <i class="fas fa-tag"></i> ${tag.tag} (${tag.count})
+            </button>
+        `;
+    });
+
+    $('#tags-container').html(html);
+
+    // Handle tag click
+    $('.tag-filter-btn').on('click', function() {
+        const tag = $(this).data('tag');
+        selectTag(tag);
+    });
+}
+
+function selectTag(tag) {
+    $('#selected-tag').val(tag);
+    $('#clear-tag-filter').show();
+    renderTags();
+
+    // Auto-search se c'è una query
+    const query = $('#search-query').val().trim();
+    if (query) {
+        performSearch(query);
+    }
+}
+
+// Clear tag filter
+$('#clear-tag-filter').on('click', function() {
+    $('#selected-tag').val('');
+    $(this).hide();
+    renderTags();
+
+    // Auto-search se c'è una query
+    const query = $('#search-query').val().trim();
+    if (query) {
+        performSearch(query);
+    }
+});
 
 // Handle search form
 $('#search-form').on('submit', function(e) {
@@ -180,6 +274,9 @@ function performSearch(query) {
     $('#answer-section').hide();
     $('#results-section').hide();
 
+    // Get selected tag filter
+    const tagFilter = $('#selected-tag').val();
+
     // API call
     $.ajax({
         url: '/api/search',
@@ -188,7 +285,8 @@ function performSearch(query) {
         data: JSON.stringify({
             query: query,
             size: 10,
-            use_rag: true
+            use_rag: true,
+            tag_filter: tagFilter
         }),
         success: function(response) {
             $('#loading').hide();
@@ -272,7 +370,9 @@ function displayResults(results) {
         ).join(' ');
 
         const tags = (result.tags || []).map(tag =>
-            `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+            `<span class="badge badge-success clickable-tag" data-tag="${tag}" style="cursor: pointer;">
+                <i class="fas fa-tag"></i> ${tag}
+            </span>`
         ).join(' ');
 
         html += `
@@ -300,6 +400,18 @@ function displayResults(results) {
     });
 
     $('#results-container').html(html);
+
+    // Make tags clickable
+    $('.clickable-tag').on('click', function() {
+        const tag = $(this).data('tag');
+        selectTag(tag);
+
+        // Scroll to top
+        $('html, body').animate({
+            scrollTop: $('#tags-container').offset().top - 100
+        }, 500);
+    });
+
     $('#results-section').show();
 }
 

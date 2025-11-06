@@ -415,6 +415,57 @@ class OpenSearchManager:
                 'by_extension': {}
             }
 
+    def get_all_tags(self) -> Dict:
+        """
+        Ottieni tutti i tags disponibili con conteggio documenti
+
+        Returns:
+            {
+                'success': bool,
+                'tags': [
+                    {'tag': str, 'count': int},
+                    ...
+                ]
+            }
+        """
+        try:
+            agg_body = {
+                'size': 0,
+                'aggs': {
+                    'all_tags': {
+                        'terms': {
+                            'field': 'tags',
+                            'size': 100,  # Max 100 tags diversi
+                            'order': {'_count': 'desc'}
+                        }
+                    }
+                }
+            }
+
+            response = self.client.search(
+                index=self.index_name,
+                body=agg_body
+            )
+
+            tags = []
+            for bucket in response['aggregations']['all_tags']['buckets']:
+                tags.append({
+                    'tag': bucket['key'],
+                    'count': bucket['doc_count']
+                })
+
+            return {
+                'success': True,
+                'tags': tags
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting tags: {e}")
+            return {
+                'success': False,
+                'tags': []
+            }
+
     def delete_document(self, doc_id: str) -> bool:
         """Elimina un documento"""
         try:
