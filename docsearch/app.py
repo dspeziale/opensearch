@@ -808,8 +808,20 @@ if __name__ == '__main__':
 
     logger.info(f"🚀 Starting DocSearch on port {port}")
 
+    # IMPORTANTE: Disabilitiamo il reloader automatico per evitare che Flask
+    # si riavvii durante il caricamento di file multipli.
+    # Il watchdog di Werkzeug rileva i nuovi file in uploads/ e causa ERR_CONNECTION_RESET
+    #
+    # TRADEOFF: Dovrai riavviare manualmente il server quando modifichi il codice Python
+    # Per riabilitare l'auto-reload: cambia use_reloader=True (ma upload multipli falliranno)
+
+    if debug:
+        logger.info("⚠️  Debug mode ON - Auto-reloader DISABILITATO per permettere upload multipli")
+        logger.info("💡 Per modificare il codice: ferma il server (Ctrl+C) e riavvia manualmente")
+
     app.run(
         host='0.0.0.0',
         port=port,
-        debug=debug
+        debug=debug,
+        use_reloader=False  # CRITICO: False per evitare riavvii durante upload
     )
