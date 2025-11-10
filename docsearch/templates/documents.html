@@ -105,6 +105,9 @@
                 <!-- Dynamic content -->
             </div>
             <div class="modal-footer">
+                <a id="modal-download-btn" href="#" class="btn btn-success" target="_blank">
+                    <i class="fas fa-download"></i> Scarica File
+                </a>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Chiudi</button>
             </div>
         </div>
@@ -195,11 +198,14 @@ function renderDocuments() {
                 <td>${formatSize(doc.file_size)}</td>
                 <td><small>${date}</small></td>
                 <td>${keywordsTags || '<em class="text-muted">Nessuno</em>'}</td>
-                <td>
-                    <button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')">
+                <td class="text-nowrap">
+                    <a href="/api/download/${doc.id}" class="btn btn-sm btn-success" target="_blank" title="Scarica file">
+                        <i class="fas fa-download"></i> Scarica
+                    </a>
+                    <button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')" title="Vedi dettagli">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.filename}')">
+                    <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.filename}')" title="Elimina documento">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
@@ -329,6 +335,10 @@ function showDocumentDetail(doc) {
     `;
 
     $('#modal-body').html(modalContent);
+
+    // Aggiorna link download nel modale
+    $('#modal-download-btn').attr('href', `/api/download/${doc.id}`);
+
     $('#doc-modal').modal('show');
 }
 
