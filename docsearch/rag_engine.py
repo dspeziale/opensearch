@@ -290,10 +290,11 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
         sources = []
 
         for r in results:
+            score = r.get('score')
             sources.append({
                 'filename': r['filename'],
                 'type': r['type'],
-                'score': round(r['score'], 2),
+                'score': round(score, 2) if score is not None else 0.0,
                 'path': r.get('file_path', '')
             })
 
@@ -305,7 +306,11 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
             return 0.0
 
         # Basato su score del primo risultato
-        top_score = results[0]['score']
+        top_score = results[0].get('score')
+
+        # Se score non è disponibile o è None, usa un valore di default
+        if top_score is None:
+            return 0.5  # Confidenza media quando lo score non è disponibile
 
         # Normalizza (score tipici: 1-20)
         confidence = min(top_score / 20.0, 1.0)

@@ -328,12 +328,18 @@ class OpenSearchManager:
                     elif 'summary' in hit['highlight']:
                         highlight_text = hit['highlight']['summary'][0]
 
+                # Gestisci score (potrebbe essere None con sort personalizzato)
+                score = hit.get('_score')
+                if score is None:
+                    score = 1.0  # Default per query con sort personalizzato
+
                 results.append({
                     'id': hit['_id'],
                     'filename': source['filename'],
                     'type': source['type'],
                     'extension': source['extension'],
-                    'score': hit.get('_score', 1.0),
+                    'score': score,
+                    'file_size': source.get('file_size', 0),
                     'summary': source.get('summary', ''),
                     'keywords': source.get('keywords', []),
                     'tags': source.get('tags', []),
