@@ -47,6 +47,8 @@ class OpenSearchManager:
         )
 
         self.index_name = 'documents'
+        self.host = host
+        self.port = port
 
         # Verifica connessione
         try:
