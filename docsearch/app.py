@@ -509,6 +509,71 @@ def api_tags():
         }), 500
 
 
+@app.route('/api/download/<doc_id>', methods=['GET'])
+def api_download(doc_id):
+    """
+    API per scaricare il file originale del documento
+
+    GET /api/download/<doc_id>
+    """
+    try:
+        # Recupera documento da OpenSearch
+        document = opensearch.get_document(doc_id)
+
+        if not document:
+            return jsonify({
+                'success': False,
+                'error': 'Document not found'
+            }), 404
+
+        # Ottieni il path del file
+        file_path = document.get('file_path', '')
+
+        if not file_path:
+            return jsonify({
+                'success': False,
+                'error': 'File path not found in document'
+            }), 404
+
+        # Verifica che il file esista
+        if not os.path.exists(file_path):
+            return jsonify({
+                'success': False,
+                'error': 'File not found on disk'
+            }), 404
+
+        # Verifica che il file sia nella directory uploads (security)
+        upload_dir = str(UPLOAD_FOLDER.resolve())
+        file_abs_path = str(Path(file_path).resolve())
+
+        if not file_abs_path.startswith(upload_dir):
+            logger.warning(f"⚠️  Attempted download outside uploads dir: {file_path}")
+            return jsonify({
+                'success': False,
+                'error': 'Invalid file path'
+            }), 403
+
+        # Nome file per download
+        original_filename = document.get('filename', 'document')
+
+        logger.info(f"📥 Downloading: {original_filename} (ID: {doc_id})")
+
+        # Invia il file
+        return send_from_directory(
+            directory=os.path.dirname(file_abs_path),
+            path=os.path.basename(file_abs_path),
+            as_attachment=True,
+            download_name=original_filename
+        )
+
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ========== Error Handlers ==========
 
 @app.errorhandler(404)
