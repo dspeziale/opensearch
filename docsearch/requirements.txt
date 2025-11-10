@@ -21,6 +21,22 @@ markdown==3.5.1
 extract-msg==0.48.0
 pypff==20211114
 
+# Additional Format Support
+# ZIP files
+zipfile36==0.1.3
+
+# XML parsing
+xmltodict==0.13.0
+
+# RTF (Rich Text Format)
+striprtf==0.0.26
+
+# ODT (OpenDocument Text)
+odfpy==1.4.1
+
+# PowerPoint
+python-pptx==0.6.23
+
 # Text Processing
 nltk==3.8.1
 sentence-transformers==2.2.2

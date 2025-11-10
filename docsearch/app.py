@@ -253,6 +253,125 @@ def api_upload():
         }), 500
 
 
+@app.route('/api/upload/directory', methods=['POST'])
+def api_upload_directory():
+    """
+    API per upload di una directory intera con tutti i suoi file
+
+    POST /api/upload/directory (multipart/form-data)
+    files[]: array di file
+    tags: tags da applicare a tutti i file (opzionale)
+    """
+    try:
+        # Verifica files
+        if 'files[]' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No files provided'
+            }), 400
+
+        files = request.files.getlist('files[]')
+
+        if not files:
+            return jsonify({
+                'success': False,
+                'error': 'No files selected'
+            }), 400
+
+        # Aggiungi tags se presenti
+        tags_input = request.form.get('tags', '').strip()
+        tags = []
+        if tags_input:
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+
+        results = {
+            'success': True,
+            'total_files': len(files),
+            'uploaded': 0,
+            'failed': 0,
+            'documents': [],
+            'errors': []
+        }
+
+        logger.info(f"📁 Processing directory upload: {len(files)} files")
+
+        for file in files:
+            try:
+                # Verifica estensione
+                filename = secure_filename(file.filename)
+                file_ext = Path(filename).suffix.lower()
+
+                if file_ext not in parser.SUPPORTED_EXTENSIONS:
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'filename': filename,
+                        'error': f'Unsupported file type: {file_ext}'
+                    })
+                    continue
+
+                # Salva file
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                unique_filename = f"{timestamp}_{filename}"
+                file_path = UPLOAD_FOLDER / unique_filename
+
+                file.save(str(file_path))
+
+                # Parse documento
+                parsed_doc = parser.parse(str(file_path))
+
+                if not parsed_doc['success']:
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'filename': filename,
+                        'error': parsed_doc.get('error', 'Unknown error')
+                    })
+                    continue
+
+                # Aggiungi tags
+                parsed_doc['tags'] = tags
+
+                # Indicizza in OpenSearch
+                index_result = opensearch.index_document(parsed_doc)
+
+                if not index_result['success']:
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'filename': filename,
+                        'error': index_result.get('error', 'Failed to index')
+                    })
+                    continue
+
+                # Success
+                results['uploaded'] += 1
+                results['documents'].append({
+                    'id': index_result['doc_id'],
+                    'filename': filename,
+                    'type': parsed_doc['type'],
+                    'size': parsed_doc['metadata']['size']
+                })
+
+                logger.info(f"✅ Indexed: {filename}")
+
+            except Exception as e:
+                results['failed'] += 1
+                results['errors'].append({
+                    'filename': file.filename,
+                    'error': str(e)
+                })
+                logger.error(f"Error processing {file.filename}: {e}")
+
+        logger.info(f"📊 Directory upload complete: {results['uploaded']} uploaded, {results['failed']} failed")
+
+        return jsonify(results)
+
+    except Exception as e:
+        logger.error(f"Directory upload error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/documents', methods=['GET'])
 def api_documents():
     """

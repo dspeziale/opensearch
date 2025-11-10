@@ -4,55 +4,136 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8 offset-md-2">
-        <div class="card card-primary">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-upload"></i> Carica Nuovo Documento</h3>
+    <div class="col-md-10 offset-md-1">
+        <div class="card card-primary card-outline card-outline-tabs">
+            <div class="card-header p-0 border-bottom-0">
+                <ul class="nav nav-tabs" id="upload-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="single-file-tab" data-toggle="pill" href="#single-file" role="tab" aria-controls="single-file" aria-selected="true">
+                            <i class="fas fa-file"></i> File Singolo
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="directory-tab" data-toggle="pill" href="#directory" role="tab" aria-controls="directory" aria-selected="false">
+                            <i class="fas fa-folder"></i> Directory
+                        </a>
+                    </li>
+                </ul>
             </div>
             <div class="card-body">
-                <form id="upload-form" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label for="file-input">Seleziona File</label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" id="file-input" required>
-                            <label class="custom-file-label" for="file-input">Scegli file...</label>
+                <div class="tab-content" id="upload-tabs-content">
+                    <!-- TAB: File Singolo -->
+                    <div class="tab-pane fade show active" id="single-file" role="tabpanel" aria-labelledby="single-file-tab">
+                        <h4 class="mb-3"><i class="fas fa-upload"></i> Carica Singolo Documento</h4>
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="file-input">Seleziona File</label>
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="file-input" required>
+                                    <label class="custom-file-label" for="file-input">Scegli file...</label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Formati supportati: PDF, DOC, DOCX, XLS, XLSX, HTML, MD, TXT, CSV, MSG, PST, ZIP, XML, JSON, RTF, ODT, PPTX (Max 50MB)
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tags-input">
+                                    <i class="fas fa-tags"></i> Tags (opzionale)
+                                </label>
+                                <input type="text" class="form-control" id="tags-input"
+                                       placeholder="Es: manuale, guida, tutorial (separati da virgola)">
+                                <small class="form-text text-muted">
+                                    Aggiungi tags per categorizzare il documento. Separa i tag con virgole.
+                                </small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg btn-block">
+                                <i class="fas fa-cloud-upload-alt"></i> Carica e Indicizza
+                            </button>
+                        </form>
+
+                        <!-- Progress -->
+                        <div id="upload-progress" class="mt-4" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     id="progress-bar"
+                                     role="progressbar"
+                                     style="width: 0%">
+                                    <span id="progress-text">0%</span>
+                                </div>
+                            </div>
+                            <p class="text-center mt-2" id="status-text">Caricamento in corso...</p>
                         </div>
-                        <small class="form-text text-muted">
-                            Formati supportati: PDF, DOC, DOCX, XLS, XLSX, HTML, MD, TXT, CSV, MSG, PST (Max 50MB)
-                        </small>
+
+                        <!-- Result -->
+                        <div id="upload-result" class="mt-4" style="display: none;"></div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="tags-input">
-                            <i class="fas fa-tags"></i> Tags (opzionale)
-                        </label>
-                        <input type="text" class="form-control" id="tags-input"
-                               placeholder="Es: manuale, guida, tutorial (separati da virgola)">
-                        <small class="form-text text-muted">
-                            Aggiungi tags per categorizzare il documento. Separa i tag con virgole.
-                        </small>
-                    </div>
+                    <!-- TAB: Directory -->
+                    <div class="tab-pane fade" id="directory" role="tabpanel" aria-labelledby="directory-tab">
+                        <h4 class="mb-3"><i class="fas fa-folder-open"></i> Carica Intera Directory</h4>
 
-                    <button type="submit" class="btn btn-primary btn-lg btn-block">
-                        <i class="fas fa-cloud-upload-alt"></i> Carica e Indicizza
-                    </button>
-                </form>
-
-                <!-- Progress -->
-                <div id="upload-progress" class="mt-4" style="display: none;">
-                    <div class="progress">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated"
-                             id="progress-bar"
-                             role="progressbar"
-                             style="width: 0%">
-                            <span id="progress-text">0%</span>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> <strong>Nota:</strong> Puoi selezionare più file dalla stessa cartella. Il browser non supporta la selezione diretta di directory, ma puoi selezionare tutti i file insieme (Ctrl+A / Cmd+A).
                         </div>
+
+                        <form id="directory-upload-form" enctype="multipart/form-data">
+                            <div class="form-group">
+                                <label for="directory-input">Seleziona File dalla Directory</label>
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="directory-input" multiple webkitdirectory directory required>
+                                    <label class="custom-file-label" for="directory-input">Scegli directory o file multipli...</label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Seleziona una directory intera o multipli file. Tutti i file supportati verranno caricati.
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="directory-tags-input">
+                                    <i class="fas fa-tags"></i> Tags (opzionale, applicati a tutti i file)
+                                </label>
+                                <input type="text" class="form-control" id="directory-tags-input"
+                                       placeholder="Es: progetto, documentazione (separati da virgola)">
+                                <small class="form-text text-muted">
+                                    I tags verranno applicati a tutti i file caricati dalla directory.
+                                </small>
+                            </div>
+
+                            <div id="file-list-preview" class="mb-3" style="display: none;">
+                                <div class="card card-secondary">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-list"></i> File da caricare: <span id="file-count">0</span></h5>
+                                    </div>
+                                    <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                        <ul id="file-list" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg btn-block">
+                                <i class="fas fa-cloud-upload-alt"></i> Carica Directory
+                            </button>
+                        </form>
+
+                        <!-- Progress -->
+                        <div id="directory-progress" class="mt-4" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     id="directory-progress-bar"
+                                     role="progressbar"
+                                     style="width: 0%">
+                                    <span id="directory-progress-text">0%</span>
+                                </div>
+                            </div>
+                            <p class="text-center mt-2" id="directory-status-text">Caricamento in corso...</p>
+                        </div>
+
+                        <!-- Result -->
+                        <div id="directory-result" class="mt-4" style="display: none;"></div>
                     </div>
-                    <p class="text-center mt-2" id="status-text">Caricamento in corso...</p>
                 </div>
-
-                <!-- Result -->
-                <div id="upload-result" class="mt-4" style="display: none;"></div>
             </div>
         </div>
 
@@ -63,7 +144,7 @@
             </div>
             <div class="card-body">
                 <ol>
-                    <li><strong>Seleziona un documento</strong> dal tuo computer</li>
+                    <li><strong>Seleziona un documento o una directory</strong> dal tuo computer</li>
                     <li><strong>Carica il file</strong> - il sistema lo analizzerà automaticamente</li>
                     <li><strong>Estrazione contenuto</strong> - il testo viene estratto dal documento</li>
                     <li><strong>Indicizzazione</strong> - il documento viene indicizzato in OpenSearch</li>
@@ -85,20 +166,33 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <h5>Documenti</h5>
                         <ul class="list-unstyled">
-                            <li><i class="fas fa-file-pdf text-danger"></i> <strong>PDF</strong> - Portable Document Format</li>
-                            <li><i class="fas fa-file-word text-primary"></i> <strong>DOC/DOCX</strong> - Microsoft Word</li>
-                            <li><i class="fas fa-file-excel text-success"></i> <strong>XLS/XLSX</strong> - Microsoft Excel</li>
-                            <li><i class="fas fa-envelope text-primary"></i> <strong>MSG</strong> - Outlook Message</li>
+                            <li><i class="fas fa-file-pdf text-danger"></i> <strong>PDF</strong></li>
+                            <li><i class="fas fa-file-word text-primary"></i> <strong>DOC/DOCX</strong></li>
+                            <li><i class="fas fa-file-alt text-info"></i> <strong>TXT/MD</strong></li>
+                            <li><i class="fas fa-file-alt text-warning"></i> <strong>RTF</strong></li>
+                            <li><i class="fas fa-file-alt text-success"></i> <strong>ODT</strong></li>
                         </ul>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <h5>Dati</h5>
                         <ul class="list-unstyled">
-                            <li><i class="fas fa-file-code text-warning"></i> <strong>HTML</strong> - Pagine Web</li>
-                            <li><i class="fas fa-file-alt text-info"></i> <strong>Markdown</strong> - File .md</li>
-                            <li><i class="fas fa-file text-secondary"></i> <strong>TXT/CSV</strong> - File di testo</li>
-                            <li><i class="fas fa-archive text-warning"></i> <strong>PST</strong> - Outlook Archive</li>
+                            <li><i class="fas fa-file-excel text-success"></i> <strong>XLS/XLSX</strong></li>
+                            <li><i class="fas fa-file-csv text-info"></i> <strong>CSV</strong></li>
+                            <li><i class="fas fa-file-code text-primary"></i> <strong>JSON</strong></li>
+                            <li><i class="fas fa-file-code text-warning"></i> <strong>XML</strong></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>Altro</h5>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-file-code text-warning"></i> <strong>HTML</strong></li>
+                            <li><i class="fas fa-envelope text-primary"></i> <strong>MSG</strong></li>
+                            <li><i class="fas fa-archive text-warning"></i> <strong>PST</strong></li>
+                            <li><i class="fas fa-file-archive text-danger"></i> <strong>ZIP</strong></li>
+                            <li><i class="fas fa-file-powerpoint text-danger"></i> <strong>PPTX</strong></li>
                         </ul>
                     </div>
                 </div>
@@ -110,13 +204,15 @@
 
 {% block extra_js %}
 <script>
+// ====== TAB: File Singolo ======
+
 // Update file input label
 $('#file-input').on('change', function() {
     const fileName = $(this).val().split('\\').pop();
     $(this).siblings('.custom-file-label').addClass('selected').html(fileName);
 });
 
-// Handle upload
+// Handle single file upload
 $('#upload-form').on('submit', function(e) {
     e.preventDefault();
 
@@ -142,7 +238,7 @@ $('#upload-form').on('submit', function(e) {
     $('#progress-text').text('0%');
     $('#status-text').text('Caricamento in corso...');
 
-    // Simulate progress (real progress tracking requires XHR)
+    // Simulate progress
     let progress = 0;
     const progressInterval = setInterval(function() {
         if (progress < 90) {
@@ -232,6 +328,183 @@ function showError(message) {
     `;
 
     $('#upload-result').html(errorHtml).show();
+}
+
+// ====== TAB: Directory ======
+
+// Update directory input label and show file list
+$('#directory-input').on('change', function() {
+    const files = this.files;
+    if (files.length > 0) {
+        $(this).siblings('.custom-file-label').addClass('selected').html(`${files.length} file selezionati`);
+
+        // Show file list preview
+        $('#file-count').text(files.length);
+        const fileList = $('#file-list');
+        fileList.empty();
+
+        for (let i = 0; i < Math.min(files.length, 50); i++) {
+            const file = files[i];
+            const sizeKB = (file.size / 1024).toFixed(2);
+            fileList.append(`<li><i class="fas fa-file"></i> ${file.name} (${sizeKB} KB)</li>`);
+        }
+
+        if (files.length > 50) {
+            fileList.append(`<li><i class="fas fa-ellipsis-h"></i> ... e altri ${files.length - 50} file</li>`);
+        }
+
+        $('#file-list-preview').show();
+    }
+});
+
+// Handle directory upload
+$('#directory-upload-form').on('submit', function(e) {
+    e.preventDefault();
+
+    const fileInput = $('#directory-input')[0];
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Seleziona una directory o file multipli');
+        return;
+    }
+
+    const formData = new FormData();
+
+    // Aggiungi tutti i file
+    for (let i = 0; i < fileInput.files.length; i++) {
+        formData.append('files[]', fileInput.files[i]);
+    }
+
+    // Aggiungi tags se presenti
+    const tagsInput = $('#directory-tags-input').val().trim();
+    if (tagsInput) {
+        formData.append('tags', tagsInput);
+    }
+
+    // Show progress
+    $('#directory-progress').show();
+    $('#directory-result').hide();
+    $('#directory-progress-bar').css('width', '0%');
+    $('#directory-progress-text').text('0%');
+    $('#directory-status-text').text('Caricamento directory in corso...');
+
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(function() {
+        if (progress < 90) {
+            progress += 5;
+            $('#directory-progress-bar').css('width', progress + '%');
+            $('#directory-progress-text').text(progress + '%');
+        }
+    }, 500);
+
+    // Upload
+    $.ajax({
+        url: '/api/upload/directory',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            clearInterval(progressInterval);
+            $('#directory-progress-bar').css('width', '100%');
+            $('#directory-progress-text').text('100%');
+
+            if (response.success) {
+                $('#directory-status-text').text('✅ Caricamento completato!');
+
+                setTimeout(function() {
+                    $('#directory-progress').hide();
+
+                    let errorsHtml = '';
+                    if (response.errors && response.errors.length > 0) {
+                        errorsHtml = `
+                            <div class="alert alert-warning mt-3">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Errori (${response.failed})</h5>
+                                <ul>
+                                    ${response.errors.slice(0, 10).map(err => `<li><strong>${err.filename}:</strong> ${err.error}</li>`).join('')}
+                                    ${response.errors.length > 10 ? `<li>... e altri ${response.errors.length - 10} errori</li>` : ''}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    let documentsHtml = '';
+                    if (response.documents && response.documents.length > 0) {
+                        documentsHtml = `
+                            <div class="mt-3">
+                                <strong>Documenti caricati (${response.uploaded}):</strong>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Nome</th>
+                                                <th>Tipo</th>
+                                                <th>Dimensione</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${response.documents.map(doc => `
+                                                <tr>
+                                                    <td>${doc.filename}</td>
+                                                    <td><span class="badge badge-info">${doc.type}</span></td>
+                                                    <td>${(doc.size / 1024).toFixed(2)} KB</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let resultHtml = `
+                        <div class="alert alert-success">
+                            <h4><i class="fas fa-check-circle"></i> Directory caricata!</h4>
+                            <hr>
+                            <p><strong>File totali:</strong> ${response.total_files}</p>
+                            <p><strong>Caricati:</strong> <span class="badge badge-success">${response.uploaded}</span></p>
+                            <p><strong>Falliti:</strong> <span class="badge badge-danger">${response.failed}</span></p>
+                            ${documentsHtml}
+                            ${errorsHtml}
+                            <hr>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Vai alla Ricerca
+                            </a>
+                            <button class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-plus"></i> Carica Altro
+                            </button>
+                        </div>
+                    `;
+
+                    $('#directory-result').html(resultHtml).show();
+
+                    // Reset form
+                    $('#directory-upload-form')[0].reset();
+                    $('#directory-input').siblings('.custom-file-label').removeClass('selected').html('Scegli directory o file multipli...');
+                    $('#file-list-preview').hide();
+                }, 500);
+            } else {
+                showDirectoryError(response.error || 'Errore sconosciuto');
+            }
+        },
+        error: function(xhr, status, error) {
+            clearInterval(progressInterval);
+            showDirectoryError('Errore durante il caricamento: ' + error);
+        }
+    });
+});
+
+function showDirectoryError(message) {
+    $('#directory-progress').hide();
+
+    const errorHtml = `
+        <div class="alert alert-danger">
+            <h4><i class="fas fa-exclamation-triangle"></i> Errore</h4>
+            <p>${message}</p>
+        </div>
+    `;
+
+    $('#directory-result').html(errorHtml).show();
 }
 </script>
 {% endblock %}

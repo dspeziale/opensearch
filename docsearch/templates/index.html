@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block page_title %}Ricerca Intelligente{% endblock %}
+{% block page_title %}DocSearch - Sistema Documentale{% endblock %}
 
 {% block content %}
 <!-- Statistiche -->
@@ -51,127 +51,254 @@
     </div>
 </div>
 
-<!-- Tags Disponibili -->
-<div class="row mb-3">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-tags"></i> Filtra per Tag</h3>
-                <div class="card-tools">
-                    <button type="button" class="btn btn-tool" id="clear-tag-filter" style="display: none;">
-                        <i class="fas fa-times"></i> Rimuovi Filtro
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="tags-container">
-                    <span class="text-muted">Caricamento tags...</span>
-                </div>
-                <input type="hidden" id="selected-tag">
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Form Ricerca -->
+<!-- Main Card with Tabs -->
 <div class="row">
     <div class="col-md-12">
-        <div class="card card-primary">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-magic"></i> Ricerca Intelligente</h3>
+        <div class="card card-primary card-outline card-outline-tabs">
+            <div class="card-header p-0 border-bottom-0">
+                <ul class="nav nav-tabs" id="main-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="search-tab" data-toggle="pill" href="#search-content" role="tab" aria-controls="search-content" aria-selected="true">
+                            <i class="fas fa-search"></i> Ricerca
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="documents-tab" data-toggle="pill" href="#documents-content" role="tab" aria-controls="documents-content" aria-selected="false">
+                            <i class="fas fa-folder-open"></i> Documenti
+                        </a>
+                    </li>
+                </ul>
             </div>
             <div class="card-body">
-                <form id="search-form">
-                    <div class="input-group input-group-lg">
-                        <input
-                            type="text"
-                            class="form-control form-control-lg"
-                            id="search-query"
-                            placeholder="Chiedi qualsiasi cosa... Es: Come installare OpenSearch?"
-                            required>
-                        <div class="input-group-append">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fas fa-search"></i> Cerca
+                <div class="tab-content" id="main-tabs-content">
+                    <!-- TAB: Ricerca -->
+                    <div class="tab-pane fade show active" id="search-content" role="tabpanel" aria-labelledby="search-tab">
+                        <!-- Tags Disponibili -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-tags"></i> Filtra per Tag</h5>
+                                        <div class="card-tools">
+                                            <button type="button" class="btn btn-tool btn-sm" id="clear-tag-filter" style="display: none;">
+                                                <i class="fas fa-times"></i> Rimuovi Filtro
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="tags-container">
+                                            <span class="text-muted">Caricamento tags...</span>
+                                        </div>
+                                        <input type="hidden" id="selected-tag">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Ricerca -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <form id="search-form">
+                                    <div class="input-group input-group-lg">
+                                        <input
+                                            type="text"
+                                            class="form-control form-control-lg"
+                                            id="search-query"
+                                            placeholder="Chiedi qualsiasi cosa... Es: Come installare OpenSearch?"
+                                            required>
+                                        <div class="input-group-append">
+                                            <button class="btn btn-primary" type="submit">
+                                                <i class="fas fa-search"></i> Cerca
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        💡 Scrivi una domanda o parole chiave. Il sistema ti fornirà una risposta intelligente con percorsi di approfondimento.
+                                    </small>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Loading -->
+                        <div id="loading" class="row mt-3" style="display: none;">
+                            <div class="col-md-12 text-center">
+                                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                                    <span class="sr-only">Ricerca in corso...</span>
+                                </div>
+                                <p class="mt-3">Sto analizzando i documenti...</p>
+                            </div>
+                        </div>
+
+                        <!-- Risposta Intelligente -->
+                        <div id="answer-section" class="row mt-3" style="display: none;">
+                            <div class="col-md-12">
+                                <!-- Answer Card -->
+                                <div class="card card-success">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-robot"></i> Risposta Intelligente</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="answer-text" class="mb-3"></div>
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong><i class="fas fa-chart-line"></i> Confidenza:</strong>
+                                                <div class="confidence-bar mt-2">
+                                                    <div class="confidence-fill" id="confidence-fill" style="width: 0%"></div>
+                                                </div>
+                                                <small id="confidence-text" class="text-muted"></small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong><i class="fas fa-file"></i> Fonti:</strong>
+                                                <div id="sources-list" class="mt-2"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Flow Card -->
+                                <div class="card card-info">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-route"></i> Percorso di Approfondimento</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="flow-steps"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Suggestions -->
+                                <div class="card card-warning">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-lightbulb"></i> Suggerimenti</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="suggestions-list"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risultati Ricerca -->
+                        <div id="results-section" class="row mt-3" style="display: none;">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-list"></i> Documenti Trovati (<span id="results-count">0</span>)</h5>
+                                    </div>
+                                    <div class="card-body" id="results-container">
+                                        <!-- Risultati dinamici -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Documenti -->
+                    <div class="tab-pane fade" id="documents-content" role="tabpanel" aria-labelledby="documents-tab">
+                        <div class="card-tools float-right mb-3">
+                            <button type="button" class="btn btn-primary" onclick="loadDocuments()">
+                                <i class="fas fa-sync"></i> Aggiorna
                             </button>
                         </div>
-                    </div>
-                    <small class="form-text text-muted">
-                        💡 Scrivi una domanda o parole chiave. Il sistema ti fornirà una risposta intelligente con percorsi di approfondimento.
-                    </small>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+                        <div class="clearfix"></div>
 
-<!-- Loading -->
-<div id="loading" class="row" style="display: none;">
-    <div class="col-md-12 text-center">
-        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-            <span class="sr-only">Ricerca in corso...</span>
-        </div>
-        <p class="mt-3">Sto analizzando i documenti...</p>
-    </div>
-</div>
-
-<!-- Risposta Intelligente -->
-<div id="answer-section" class="row" style="display: none;">
-    <div class="col-md-12">
-        <!-- Answer Card -->
-        <div class="card card-success">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-robot"></i> Risposta Intelligente</h3>
-            </div>
-            <div class="card-body">
-                <div id="answer-text" class="mb-3"></div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong><i class="fas fa-chart-line"></i> Confidenza:</strong>
-                        <div class="confidence-bar mt-2">
-                            <div class="confidence-fill" id="confidence-fill" style="width: 0%"></div>
+                        <!-- Filters -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="filter-name" placeholder="Filtra per nome...">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="applyFilters()">
+                                            <i class="fas fa-filter"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-control" id="filter-type">
+                                    <option value="">Tutti i tipi</option>
+                                    <option value=".pdf">PDF</option>
+                                    <option value=".docx">Word</option>
+                                    <option value=".xlsx">Excel</option>
+                                    <option value=".html">HTML</option>
+                                    <option value=".md">Markdown</option>
+                                    <option value=".txt">Text</option>
+                                    <option value=".json">JSON</option>
+                                    <option value=".xml">XML</option>
+                                    <option value=".zip">ZIP</option>
+                                    <option value=".pptx">PowerPoint</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-control" id="sort-by">
+                                    <option value="indexed_at">Data</option>
+                                    <option value="filename">Nome</option>
+                                    <option value="size">Dimensione</option>
+                                </select>
+                            </div>
                         </div>
-                        <small id="confidence-text" class="text-muted"></small>
-                    </div>
-                    <div class="col-md-6">
-                        <strong><i class="fas fa-file"></i> Fonti:</strong>
-                        <div id="sources-list" class="mt-2"></div>
+
+                        <!-- Loading -->
+                        <div id="docs-loading" class="text-center" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Caricamento...</span>
+                            </div>
+                        </div>
+
+                        <!-- Documents Table -->
+                        <div id="docs-container">
+                            <table class="table table-hover" id="docs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Documento</th>
+                                        <th>Tipo</th>
+                                        <th>Dimensione</th>
+                                        <th>Indicizzato</th>
+                                        <th>Keywords/Tags</th>
+                                        <th>Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="docs-tbody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div id="docs-info">Mostrando 0 documenti</div>
+                            </div>
+                            <div class="col-md-6">
+                                <nav>
+                                    <ul class="pagination justify-content-end" id="pagination">
+                                        <!-- Dynamic pagination -->
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Flow Card -->
-        <div class="card card-info">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-route"></i> Percorso di Approfondimento</h3>
-            </div>
-            <div class="card-body">
-                <div id="flow-steps"></div>
-            </div>
-        </div>
-
-        <!-- Suggestions -->
-        <div class="card card-warning">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-lightbulb"></i> Suggerimenti</h3>
-            </div>
-            <div class="card-body">
-                <div id="suggestions-list"></div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Risultati Ricerca -->
-<div id="results-section" class="row" style="display: none;">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-list"></i> Documenti Trovati (<span id="results-count">0</span>)</h3>
+<!-- Document Detail Modal -->
+<div class="modal fade" id="doc-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-title">Dettagli Documento</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
             </div>
-            <div class="card-body" id="results-container">
-                <!-- Risultati dinamici -->
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Chiudi</button>
             </div>
         </div>
     </div>
@@ -180,13 +307,26 @@
 
 {% block extra_js %}
 <script>
+// ============ SHARED VARIABLES ============
 let searchCounter = 0;
 let allTags = [];
+let allDocuments = [];
+let currentPage = 1;
+const pageSize = 20;
 
-// Load tags on page load
+// ============ INITIALIZATION ============
 $(document).ready(function() {
     loadTags();
+
+    // Load documents when switching to documents tab
+    $('#documents-tab').on('shown.bs.tab', function() {
+        if (allDocuments.length === 0) {
+            loadDocuments();
+        }
+    });
 });
+
+// ============ TAB: RICERCA ============
 
 function loadTags() {
     $.ajax({
@@ -423,6 +563,247 @@ function getConfidenceLabel(confidence) {
     return 'Molto Bassa';
 }
 
+// ============ TAB: DOCUMENTI ============
+
+function loadDocuments() {
+    $('#docs-loading').show();
+    $('#docs-container').hide();
+
+    $.ajax({
+        url: '/api/documents?size=100',
+        method: 'GET',
+        success: function(response) {
+            $('#docs-loading').hide();
+            $('#docs-container').show();
+
+            if (response.success) {
+                allDocuments = response.documents;
+                renderDocuments();
+            } else {
+                showError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#docs-loading').hide();
+            showError('Errore durante il caricamento: ' + error);
+        }
+    });
+}
+
+function renderDocuments() {
+    const tbody = $('#docs-tbody');
+    tbody.empty();
+
+    if (allDocuments.length === 0) {
+        tbody.append(`
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>Nessun documento trovato</p>
+                    <a href="/upload" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Carica il primo documento
+                    </a>
+                </td>
+            </tr>
+        `);
+        return;
+    }
+
+    // Paginate
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageDocuments = allDocuments.slice(start, end);
+
+    pageDocuments.forEach(doc => {
+        const keywords = (doc.keywords || []).slice(0, 3).map(kw =>
+            `<span class="badge badge-secondary">${kw}</span>`
+        ).join(' ');
+
+        const tags = (doc.tags || []).map(tag =>
+            `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+        ).join(' ');
+
+        const keywordsTags = [keywords, tags].filter(x => x).join(' ');
+
+        const date = new Date(doc.indexed_at).toLocaleString('it-IT');
+
+        const row = `
+            <tr>
+                <td>
+                    <i class="fas fa-file-${getFileIcon(doc.extension)} text-primary"></i>
+                    <strong>${doc.filename}</strong>
+                </td>
+                <td><span class="badge badge-info">${doc.type}</span></td>
+                <td>${formatSize(doc.file_size)}</td>
+                <td><small>${date}</small></td>
+                <td>${keywordsTags || '<em class="text-muted">Nessuno</em>'}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewDocument('${doc.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteDocument('${doc.id}', '${doc.filename}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        tbody.append(row);
+    });
+
+    // Update info
+    $('#docs-info').text(`Mostrando ${allDocuments.length} documenti`);
+
+    // Render pagination
+    renderPagination();
+}
+
+function renderPagination() {
+    const totalPages = Math.ceil(allDocuments.length / pageSize);
+    const pagination = $('#pagination');
+    pagination.empty();
+
+    if (totalPages <= 1) return;
+
+    // Previous
+    pagination.append(`
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `);
+
+    // Pages
+    for (let i = 1; i <= totalPages; i++) {
+        pagination.append(`
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `);
+    }
+
+    // Next
+    pagination.append(`
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `);
+}
+
+function changePage(page) {
+    const totalPages = Math.ceil(allDocuments.length / pageSize);
+    if (page < 1 || page > totalPages) return;
+
+    currentPage = page;
+    renderDocuments();
+    return false;
+}
+
+function viewDocument(docId) {
+    $.ajax({
+        url: `/api/document/${docId}`,
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                showDocumentDetail(response.document);
+            } else {
+                showError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            showError('Errore: ' + error);
+        }
+    });
+}
+
+function showDocumentDetail(doc) {
+    $('#modal-title').text(doc.filename);
+
+    const keywords = (doc.keywords || []).map(kw =>
+        `<span class="badge badge-secondary">${kw}</span>`
+    ).join(' ');
+
+    const tags = (doc.tags || []).map(tag =>
+        `<span class="badge badge-success"><i class="fas fa-tag"></i> ${tag}</span>`
+    ).join(' ');
+
+    let tagsHtml = '';
+    if (tags) {
+        tagsHtml = `
+            <hr>
+            <div>
+                <strong>Tags:</strong><br>
+                ${tags}
+            </div>
+        `;
+    }
+
+    const modalContent = `
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Tipo:</strong> ${doc.type}</p>
+                <p><strong>Estensione:</strong> ${doc.extension}</p>
+                <p><strong>Dimensione:</strong> ${formatSize(doc.file_size)}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Indicizzato:</strong> ${new Date(doc.indexed_at).toLocaleString('it-IT')}</p>
+                <p><strong>Path:</strong> <code>${doc.file_path}</code></p>
+            </div>
+        </div>
+        <hr>
+        <div>
+            <strong>Keywords:</strong><br>
+            ${keywords || '<em class="text-muted">Nessuno</em>'}
+        </div>
+        ${tagsHtml}
+        <hr>
+        <div>
+            <strong>Summary:</strong>
+            <p>${doc.summary}</p>
+        </div>
+        <hr>
+        <div>
+            <strong>Contenuto (anteprima):</strong>
+            <pre style="max-height: 300px; overflow-y: auto;">${doc.content.substring(0, 1000)}...</pre>
+        </div>
+    `;
+
+    $('#modal-body').html(modalContent);
+    $('#doc-modal').modal('show');
+}
+
+function deleteDocument(docId, filename) {
+    if (!confirm(`Sei sicuro di voler eliminare "${filename}"?`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `/api/document/${docId}`,
+        method: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                alert('✅ Documento eliminato con successo');
+                loadDocuments();
+            } else {
+                showError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            showError('Errore durante l\'eliminazione: ' + error);
+        }
+    });
+}
+
+function applyFilters() {
+    // TODO: Implement filters
+    alert('Filtri in via di implementazione');
+}
+
+// ============ SHARED UTILITIES ============
+
 function getFileIcon(extension) {
     const icons = {
         '.pdf': 'pdf',
@@ -435,9 +816,21 @@ function getFileIcon(extension) {
         '.txt': 'alt',
         '.csv': 'csv',
         '.msg': 'envelope',
-        '.pst': 'archive'
+        '.pst': 'archive',
+        '.zip': 'archive',
+        '.xml': 'code',
+        '.json': 'code',
+        '.rtf': 'alt',
+        '.odt': 'alt',
+        '.pptx': 'powerpoint'
     };
     return icons[extension] || 'alt';
+}
+
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
 }
 
 function showError(message) {

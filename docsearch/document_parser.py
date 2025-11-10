@@ -1,10 +1,12 @@
 """
 DocSearch - Document Parser
-Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT, MSG, PST
+Supporta: PDF, DOC, DOCX, Excel, HTML, Markdown, TXT, MSG, PST, ZIP, XML, JSON, RTF, ODT, PPTX
 """
 
 import os
 import re
+import json
+import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional
 import logging
@@ -24,6 +26,19 @@ from bs4 import BeautifulSoup
 
 # Markdown
 import markdown
+
+# XML
+import xmltodict
+
+# RTF
+from striprtf.striprtf import rtf_to_text
+
+# ODT
+from odf import text, teletype
+from odf.opendocument import load as odf_load
+
+# PowerPoint
+from pptx import Presentation
 
 # Outlook
 try:
@@ -61,7 +76,13 @@ class DocumentParser:
         '.txt': 'Text Document',
         '.csv': 'CSV File',
         '.msg': 'Outlook Message',
-        '.pst': 'Outlook Archive'
+        '.pst': 'Outlook Archive',
+        '.zip': 'ZIP Archive',
+        '.xml': 'XML Document',
+        '.json': 'JSON Document',
+        '.rtf': 'Rich Text Format',
+        '.odt': 'OpenDocument Text',
+        '.pptx': 'PowerPoint Presentation'
     }
 
     def __init__(self):
@@ -77,7 +98,13 @@ class DocumentParser:
             '.md': self._parse_markdown,
             '.txt': self._parse_text,
             '.msg': self._parse_msg,
-            '.pst': self._parse_pst
+            '.pst': self._parse_pst,
+            '.zip': self._parse_zip,
+            '.xml': self._parse_xml,
+            '.json': self._parse_json,
+            '.rtf': self._parse_rtf,
+            '.odt': self._parse_odt,
+            '.pptx': self._parse_pptx
         }
 
     def parse(self, file_path: str) -> Dict:
@@ -448,6 +475,211 @@ class DocumentParser:
 
         except Exception as e:
             logger.error(f"Error parsing PST file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_zip(self, file_path: Path) -> str:
+        """Estrae contenuto da file ZIP - elenca i file e prova ad estrarre testo dai file supportati"""
+        text = []
+
+        try:
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                text.append("=== ZIP ARCHIVE ===\n")
+                text.append(f"Files in archive: {len(zip_ref.namelist())}\n")
+
+                # Lista dei file
+                text.append("\n--- File List ---")
+                for file_info in zip_ref.filelist:
+                    size_kb = file_info.file_size / 1024
+                    text.append(f"📄 {file_info.filename} ({size_kb:.2f} KB)")
+
+                # Prova ad estrarre contenuto da file di testo supportati
+                text.append("\n--- Extractable Content ---")
+                for filename in zip_ref.namelist()[:50]:  # Max 50 file per performance
+                    file_ext = Path(filename).suffix.lower()
+
+                    # Solo file di testo semplici per sicurezza
+                    if file_ext in ['.txt', '.md', '.json', '.xml', '.html', '.csv']:
+                        try:
+                            with zip_ref.open(filename) as f:
+                                content = f.read()
+                                # Prova a decodificare
+                                try:
+                                    decoded_content = content.decode('utf-8')
+                                except:
+                                    decoded_content = content.decode('latin-1', errors='ignore')
+
+                                # Limita la lunghezza per file
+                                preview = decoded_content[:1000].strip()
+                                text.append(f"\n=== {filename} ===")
+                                text.append(preview[:500] + "..." if len(preview) > 500 else preview)
+                        except Exception as e:
+                            logger.debug(f"Could not extract {filename}: {e}")
+                            continue
+
+        except Exception as e:
+            logger.error(f"Error parsing ZIP file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_xml(self, file_path: Path) -> str:
+        """Estrae contenuto da file XML"""
+        text = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                xml_content = f.read()
+
+            # Converti XML in dict
+            xml_dict = xmltodict.parse(xml_content)
+
+            text.append("=== XML DOCUMENT ===\n")
+
+            # Converti il dict in una rappresentazione leggibile
+            json_str = json.dumps(xml_dict, indent=2, ensure_ascii=False)
+            text.append(json_str)
+
+            # Aggiungi anche il testo raw per la ricerca
+            text.append("\n\n=== RAW TEXT ===")
+            soup = BeautifulSoup(xml_content, 'xml')
+            text.append(soup.get_text())
+
+        except Exception as e:
+            logger.error(f"Error parsing XML file: {e}")
+            # Fallback: prova a estrarre solo il testo
+            try:
+                soup = BeautifulSoup(xml_content, 'xml')
+                text.append("=== XML DOCUMENT (TEXT ONLY) ===\n")
+                text.append(soup.get_text())
+            except:
+                raise
+
+        return '\n'.join(text)
+
+    def _parse_json(self, file_path: Path) -> str:
+        """Estrae contenuto da file JSON"""
+        text = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+
+            text.append("=== JSON DOCUMENT ===\n")
+
+            # Pretty print JSON
+            json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
+            text.append(json_str)
+
+            # Estrai anche tutti i valori di testo per la ricerca
+            text.append("\n\n=== EXTRACTED TEXT ===")
+
+            def extract_text_values(obj, prefix=""):
+                """Estrae ricorsivamente tutti i valori stringa"""
+                results = []
+                if isinstance(obj, dict):
+                    for key, value in obj.items():
+                        results.extend(extract_text_values(value, f"{prefix}.{key}" if prefix else key))
+                elif isinstance(obj, list):
+                    for i, item in enumerate(obj):
+                        results.extend(extract_text_values(item, f"{prefix}[{i}]"))
+                elif isinstance(obj, str):
+                    results.append(f"{prefix}: {obj}")
+                return results
+
+            text_values = extract_text_values(json_data)
+            text.extend(text_values)
+
+        except Exception as e:
+            logger.error(f"Error parsing JSON file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_rtf(self, file_path: Path) -> str:
+        """Estrae testo da file RTF"""
+        text = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                rtf_content = f.read()
+
+            text.append("=== RTF DOCUMENT ===\n")
+
+            # Converti RTF a testo
+            plain_text = rtf_to_text(rtf_content)
+            text.append(plain_text)
+
+        except Exception as e:
+            logger.error(f"Error parsing RTF file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_odt(self, file_path: Path) -> str:
+        """Estrae testo da file ODT (OpenDocument Text)"""
+        text = []
+
+        try:
+            doc = odf_load(str(file_path))
+
+            text.append("=== ODT DOCUMENT ===\n")
+
+            # Estrai tutti i paragrafi di testo
+            all_paragraphs = doc.getElementsByType(text.P)
+            for para in all_paragraphs:
+                para_text = teletype.extractText(para)
+                if para_text.strip():
+                    text.append(para_text)
+
+            # Estrai anche heading
+            all_headings = doc.getElementsByType(text.H)
+            for heading in all_headings:
+                heading_text = teletype.extractText(heading)
+                if heading_text.strip():
+                    text.append(f"\n## {heading_text}\n")
+
+        except Exception as e:
+            logger.error(f"Error parsing ODT file: {e}")
+            raise
+
+        return '\n'.join(text)
+
+    def _parse_pptx(self, file_path: Path) -> str:
+        """Estrae testo da PowerPoint PPTX"""
+        text = []
+
+        try:
+            prs = Presentation(str(file_path))
+
+            text.append("=== POWERPOINT PRESENTATION ===\n")
+            text.append(f"Total Slides: {len(prs.slides)}\n")
+
+            for slide_num, slide in enumerate(prs.slides, 1):
+                text.append(f"\n--- Slide {slide_num} ---")
+
+                # Estrai testo da tutti gli shape
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        text.append(shape.text)
+
+                    # Estrai anche da tabelle
+                    if shape.has_table:
+                        table = shape.table
+                        for row in table.rows:
+                            row_text = ' | '.join([cell.text for cell in row.cells])
+                            if row_text.strip():
+                                text.append(row_text)
+
+                    # Estrai note
+                if slide.has_notes_slide:
+                    notes = slide.notes_slide.notes_text_frame.text
+                    if notes.strip():
+                        text.append(f"\nNotes: {notes}")
+
+        except Exception as e:
+            logger.error(f"Error parsing PPTX file: {e}")
             raise
 
         return '\n'.join(text)
