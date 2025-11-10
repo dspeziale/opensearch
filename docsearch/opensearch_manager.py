@@ -375,7 +375,9 @@ class OpenSearchManager:
         """
         try:
             response = self.client.get(index=self.index_name, id=doc_id)
-            return response['_source']
+            document = response['_source']
+            document['id'] = response['_id']  # Aggiungi l'ID al documento
+            return document
         except NotFoundError:
             logger.warning(f"Document not found: {doc_id}")
             return None
