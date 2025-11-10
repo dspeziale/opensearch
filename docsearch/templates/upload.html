@@ -29,16 +29,16 @@
                 <div class="tab-content" id="upload-tabs-content">
                     <!-- TAB: File Singolo -->
                     <div class="tab-pane fade show active" id="single-file" role="tabpanel" aria-labelledby="single-file-tab">
-                        <h4 class="mb-3"><i class="fas fa-upload"></i> Carica Singolo Documento</h4>
+                        <h4 class="mb-3"><i class="fas fa-upload"></i> Carica Documenti</h4>
                         <form id="upload-form" enctype="multipart/form-data">
                             <div class="form-group">
-                                <label for="file-input">Seleziona File</label>
+                                <label for="file-input">Seleziona File (singolo o multiplo)</label>
                                 <div class="custom-file">
-                                    <input type="file" class="custom-file-input" id="file-input" required>
+                                    <input type="file" class="custom-file-input" id="file-input" multiple required>
                                     <label class="custom-file-label" for="file-input">Scegli file...</label>
                                 </div>
                                 <small class="form-text text-muted">
-                                    Formati supportati: PDF, DOC, DOCX, XLS, XLSX, HTML, MD, TXT, CSV, MSG, PST, ZIP, XML, JSON, RTF, ODT, PPTX (Max 50MB)
+                                    Puoi selezionare uno o più file. Formati supportati: PDF, DOC, DOCX, XLS, XLSX, HTML, MD, TXT, CSV, MSG, PST, ZIP, XML, JSON, RTF, ODT, PPTX (Max 50MB per file)
                                 </small>
                             </div>
 
@@ -49,8 +49,19 @@
                                 <input type="text" class="form-control" id="tags-input"
                                        placeholder="Es: manuale, guida, tutorial (separati da virgola)">
                                 <small class="form-text text-muted">
-                                    Aggiungi tags per categorizzare il documento. Separa i tag con virgole.
+                                    Aggiungi tags per categorizzare i documenti. Separa i tag con virgole.
                                 </small>
+                            </div>
+
+                            <div id="single-file-list-preview" class="mb-3" style="display: none;">
+                                <div class="card card-secondary">
+                                    <div class="card-header">
+                                        <h5 class="card-title"><i class="fas fa-list"></i> File selezionati: <span id="single-file-count">0</span></h5>
+                                    </div>
+                                    <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                        <ul id="single-file-list" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
                             </div>
 
                             <button type="submit" class="btn btn-primary btn-lg btn-block">
@@ -287,29 +298,69 @@
 <script>
 // ====== TAB: File Singolo ======
 
-// Update file input label
+// Update file input label and show file list
 $('#file-input').on('change', function() {
-    const fileName = $(this).val().split('\\').pop();
-    $(this).siblings('.custom-file-label').addClass('selected').html(fileName);
+    const files = this.files;
+    if (files.length === 0) {
+        $(this).siblings('.custom-file-label').removeClass('selected').html('Scegli file...');
+        $('#single-file-list-preview').hide();
+        return;
+    }
+
+    if (files.length === 1) {
+        const fileName = files[0].name;
+        $(this).siblings('.custom-file-label').addClass('selected').html(fileName);
+        $('#single-file-list-preview').hide();
+    } else {
+        $(this).siblings('.custom-file-label').addClass('selected').html(`${files.length} file selezionati`);
+
+        // Show file list preview
+        $('#single-file-count').text(files.length);
+        const fileList = $('#single-file-list');
+        fileList.empty();
+
+        for (let i = 0; i < Math.min(files.length, 50); i++) {
+            const file = files[i];
+            const sizeKB = (file.size / 1024).toFixed(2);
+            fileList.append(`<li><i class="fas fa-file"></i> ${file.name} (${sizeKB} KB)</li>`);
+        }
+
+        if (files.length > 50) {
+            fileList.append(`<li><i class="fas fa-ellipsis-h"></i> ... e altri ${files.length - 50} file</li>`);
+        }
+
+        $('#single-file-list-preview').show();
+    }
 });
 
-// Handle single file upload
+// Handle single or multiple file upload
 $('#upload-form').on('submit', function(e) {
     e.preventDefault();
 
     const fileInput = $('#file-input')[0];
-    if (!fileInput.files || !fileInput.files[0]) {
-        alert('Seleziona un file');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Seleziona almeno un file');
         return;
     }
 
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-
-    // Aggiungi tags se presenti
+    const files = fileInput.files;
     const tagsInput = $('#tags-input').val().trim();
-    if (tagsInput) {
-        formData.append('tags', tagsInput);
+
+    // Se è un singolo file, usa l'endpoint /api/upload
+    if (files.length === 1) {
+        uploadSingleFile(files[0], tagsInput);
+    } else {
+        // Se sono più file, usa l'endpoint /api/upload/directory
+        uploadMultipleFiles(files, tagsInput);
+    }
+});
+
+// Funzione per caricare un singolo file
+function uploadSingleFile(file, tags) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (tags) {
+        formData.append('tags', tags);
     }
 
     // Show progress
@@ -385,7 +436,8 @@ $('#upload-form').on('submit', function(e) {
 
                     // Reset form
                     $('#upload-form')[0].reset();
-                    $('.custom-file-label').removeClass('selected').html('Scegli file...');
+                    $('#file-input').siblings('.custom-file-label').removeClass('selected').html('Scegli file...');
+                    $('#single-file-list-preview').hide();
                 }, 500);
             } else {
                 showError(response.error);
@@ -396,7 +448,135 @@ $('#upload-form').on('submit', function(e) {
             showError('Errore durante il caricamento: ' + error);
         }
     });
-});
+}
+
+// Funzione per caricare file multipli
+function uploadMultipleFiles(files, tags) {
+    const formData = new FormData();
+
+    // Aggiungi tutti i file
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files[]', files[i]);
+    }
+
+    // Aggiungi tags se presenti
+    if (tags) {
+        formData.append('tags', tags);
+    }
+
+    // Show progress
+    $('#upload-progress').show();
+    $('#upload-result').hide();
+    $('#progress-bar').css('width', '0%');
+    $('#progress-text').text('0%');
+    $('#status-text').text('Caricamento file multipli in corso...');
+
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(function() {
+        if (progress < 90) {
+            progress += 5;
+            $('#progress-bar').css('width', progress + '%');
+            $('#progress-text').text(progress + '%');
+        }
+    }, 300);
+
+    // Upload
+    $.ajax({
+        url: '/api/upload/directory',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            clearInterval(progressInterval);
+            $('#progress-bar').css('width', '100%');
+            $('#progress-text').text('100%');
+
+            if (response.success) {
+                $('#status-text').text('✅ Caricamento completato!');
+
+                setTimeout(function() {
+                    $('#upload-progress').hide();
+
+                    let errorsHtml = '';
+                    if (response.errors && response.errors.length > 0) {
+                        errorsHtml = `
+                            <div class="alert alert-warning mt-3">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Errori (${response.failed})</h5>
+                                <ul>
+                                    ${response.errors.slice(0, 10).map(err => `<li><strong>${err.filename}:</strong> ${err.error}</li>`).join('')}
+                                    ${response.errors.length > 10 ? `<li>... e altri ${response.errors.length - 10} errori</li>` : ''}
+                                </ul>
+                            </div>
+                        `;
+                    }
+
+                    let documentsHtml = '';
+                    if (response.documents && response.documents.length > 0) {
+                        documentsHtml = `
+                            <div class="mt-3">
+                                <strong>Documenti caricati (${response.uploaded}):</strong>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Nome</th>
+                                                <th>Tipo</th>
+                                                <th>Dimensione</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${response.documents.map(doc => `
+                                                <tr>
+                                                    <td>${doc.filename}</td>
+                                                    <td><span class="badge badge-info">${doc.type}</span></td>
+                                                    <td>${(doc.size / 1024).toFixed(2)} KB</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let resultHtml = `
+                        <div class="alert alert-success">
+                            <h4><i class="fas fa-check-circle"></i> File caricati con successo!</h4>
+                            <hr>
+                            <p><strong>File totali:</strong> ${response.total_files}</p>
+                            <p><strong>Caricati:</strong> <span class="badge badge-success">${response.uploaded}</span></p>
+                            <p><strong>Falliti:</strong> <span class="badge badge-danger">${response.failed}</span></p>
+                            ${documentsHtml}
+                            ${errorsHtml}
+                            <hr>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Vai alla Ricerca
+                            </a>
+                            <button class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-plus"></i> Carica Altro
+                            </button>
+                        </div>
+                    `;
+
+                    $('#upload-result').html(resultHtml).show();
+
+                    // Reset form
+                    $('#upload-form')[0].reset();
+                    $('#file-input').siblings('.custom-file-label').removeClass('selected').html('Scegli file...');
+                    $('#single-file-list-preview').hide();
+                }, 500);
+            } else {
+                showError(response.error || 'Errore sconosciuto');
+            }
+        },
+        error: function(xhr, status, error) {
+            clearInterval(progressInterval);
+            showError('Errore durante il caricamento: ' + error);
+        }
+    });
+}
 
 function showError(message) {
     $('#upload-progress').hide();
