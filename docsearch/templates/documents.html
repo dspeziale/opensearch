@@ -381,32 +381,36 @@ function deleteDocument(docId, filename) {
         `Sei sicuro di voler eliminare "${getDisplayFilename(filename)}"?`,
         function() {
             // Conferma - procedi con eliminazione
-            const asyncBlock = notifier.async(
-                'Eliminazione in corso...',
-                function(res) {
+            // Crea una Promise per l'operazione
+            const deletePromise = new Promise((resolve, reject) => {
+                $.ajax({
+                    url: `/api/document/${docId}`,
+                    method: 'DELETE',
+                    success: function(response) {
+                        if (response.success) {
+                            resolve(response);
+                        } else {
+                            reject(response.error);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        reject(error);
+                    }
+                });
+            });
+
+            // Usa notifier.async con la Promise
+            notifier.async(
+                deletePromise,
+                function(response) {
                     notifier.success('Documento eliminato con successo!');
                     loadDocuments();
                 },
-                function(err) {
-                    notifier.alert('Errore durante l\'eliminazione: ' + err);
-                }
-            );
-
-            // Esegui chiamata AJAX
-            $.ajax({
-                url: `/api/document/${docId}`,
-                method: 'DELETE',
-                success: function(response) {
-                    if (response.success) {
-                        asyncBlock(response);
-                    } else {
-                        asyncBlock.error(response.error);
-                    }
+                function(error) {
+                    notifier.alert('Errore durante l\'eliminazione: ' + error);
                 },
-                error: function(xhr, status, error) {
-                    asyncBlock.error(error);
-                }
-            });
+                'Eliminazione in corso...'
+            );
         },
         function() {
             // Annulla - non fare nulla
