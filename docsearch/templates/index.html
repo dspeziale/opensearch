@@ -204,17 +204,17 @@
 
                         <!-- Filters -->
                         <div class="row mb-3">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="filter-name" placeholder="Filtra per nome...">
                                     <div class="input-group-append">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="applyFilters()">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="applyDocumentFilters()">
                                             <i class="fas fa-filter"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <select class="form-control" id="filter-type">
                                     <option value="">Tutti i tipi</option>
                                     <option value=".pdf">PDF</option>
@@ -229,12 +229,22 @@
                                     <option value=".pptx">PowerPoint</option>
                                 </select>
                             </div>
+                            <div class="col-md-3">
+                                <select class="form-control" id="filter-tags" multiple size="4" title="Filtra per tag (Ctrl/Cmd per multipli)">
+                                    <option value="">Tutti i tag</option>
+                                </select>
+                            </div>
                             <div class="col-md-2">
                                 <select class="form-control" id="sort-by">
                                     <option value="indexed_at">Data</option>
                                     <option value="filename">Nome</option>
                                     <option value="size">Dimensione</option>
                                 </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-secondary btn-block" type="button" onclick="clearDocumentFilters()">
+                                    <i class="fas fa-times"></i> Reset
+                                </button>
                             </div>
                         </div>
 
@@ -331,6 +341,7 @@ $(document).ready(function() {
 
     // Event handlers per filtri documenti
     $('#filter-type').on('change', applyDocumentFilters);
+    $('#filter-tags').on('change', applyDocumentFilters);
     $('#sort-by').on('change', applyDocumentFilters);
     $('#filter-name').on('keyup', function(e) {
         if (e.key === 'Enter') {
@@ -600,6 +611,7 @@ function loadDocuments() {
 
             if (response.success) {
                 allDocuments = response.documents;
+                populateDocumentTagsFilter(); // Popola filtro tag
                 applyDocumentFilters(); // Applica filtri e renderizza
             } else {
                 showError(response.error);
@@ -828,6 +840,36 @@ function deleteDocument(docId, filename) {
     });
 }
 
+function populateDocumentTagsFilter() {
+    // Raccogli tutti i tag unici
+    const allTags = new Set();
+    allDocuments.forEach(doc => {
+        if (doc.tags && Array.isArray(doc.tags)) {
+            doc.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+
+    // Ordina i tag alfabeticamente
+    const sortedTags = Array.from(allTags).sort();
+
+    // Popola il select
+    const filterTags = $('#filter-tags');
+    filterTags.empty();
+    filterTags.append('<option value="">Tutti i tag</option>');
+
+    sortedTags.forEach(tag => {
+        filterTags.append(`<option value="${tag}">${tag}</option>`);
+    });
+}
+
+function clearDocumentFilters() {
+    $('#filter-name').val('');
+    $('#filter-type').val('');
+    $('#filter-tags').val('');
+    $('#sort-by').val('indexed_at');
+    applyDocumentFilters();
+}
+
 function applyFilters() {
     // TODO: Implement filters
     alert('Filtri in via di implementazione');
@@ -837,6 +879,7 @@ function applyDocumentFilters() {
     // Ottieni i valori dei filtri
     const nameFilter = $('#filter-name').val().toLowerCase().trim();
     const typeFilter = $('#filter-type').val();
+    const selectedTags = $('#filter-tags').val() || []; // Array di tag selezionati
     const sortBy = $('#sort-by').val();
 
     // Filtra documenti
@@ -849,6 +892,15 @@ function applyDocumentFilters() {
         // Filtro per tipo
         if (typeFilter && doc.extension !== typeFilter) {
             return false;
+        }
+
+        // Filtro per tag (selezione multipla - documento deve avere ALMENO uno dei tag selezionati)
+        if (selectedTags.length > 0 && !selectedTags.includes('')) {
+            const docTags = doc.tags || [];
+            const hasMatchingTag = selectedTags.some(selectedTag => docTags.includes(selectedTag));
+            if (!hasMatchingTag) {
+                return false;
+            }
         }
 
         return true;

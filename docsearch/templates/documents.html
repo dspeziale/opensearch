@@ -17,7 +17,7 @@
             <div class="card-body">
                 <!-- Filters -->
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="input-group">
                             <input type="text" class="form-control" id="filter-name" placeholder="Filtra per nome...">
                             <div class="input-group-append">
@@ -27,7 +27,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <select class="form-control" id="filter-type">
                             <option value="">Tutti i tipi</option>
                             <option value=".pdf">PDF</option>
@@ -38,12 +38,22 @@
                             <option value=".txt">Text</option>
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <select class="form-control" id="filter-tags" multiple size="4" title="Filtra per tag (Ctrl/Cmd per multipli)">
+                            <option value="">Tutti i tag</option>
+                        </select>
+                    </div>
                     <div class="col-md-2">
                         <select class="form-control" id="sort-by">
                             <option value="indexed_at">Data</option>
                             <option value="filename">Nome</option>
                             <option value="size">Dimensione</option>
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary btn-block" type="button" onclick="clearFilters()">
+                            <i class="fas fa-times"></i> Reset
+                        </button>
                     </div>
                 </div>
 
@@ -128,6 +138,7 @@ $(document).ready(function() {
 
     // Event handlers per filtri
     $('#filter-type').on('change', applyFilters);
+    $('#filter-tags').on('change', applyFilters);
     $('#sort-by').on('change', applyFilters);
 
     // Applica filtro per nome quando si preme Enter
@@ -151,6 +162,7 @@ function loadDocuments() {
 
             if (response.success) {
                 allDocuments = response.documents;
+                populateTagsFilter(); // Popola filtro tag
                 applyFilters(); // Applica filtri e renderizza
             } else {
                 showError(response.error);
@@ -378,10 +390,41 @@ function deleteDocument(docId, filename) {
     });
 }
 
+function populateTagsFilter() {
+    // Raccogli tutti i tag unici
+    const allTags = new Set();
+    allDocuments.forEach(doc => {
+        if (doc.tags && Array.isArray(doc.tags)) {
+            doc.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+
+    // Ordina i tag alfabeticamente
+    const sortedTags = Array.from(allTags).sort();
+
+    // Popola il select
+    const filterTags = $('#filter-tags');
+    filterTags.empty();
+    filterTags.append('<option value="">Tutti i tag</option>');
+
+    sortedTags.forEach(tag => {
+        filterTags.append(`<option value="${tag}">${tag}</option>`);
+    });
+}
+
+function clearFilters() {
+    $('#filter-name').val('');
+    $('#filter-type').val('');
+    $('#filter-tags').val('');
+    $('#sort-by').val('indexed_at');
+    applyFilters();
+}
+
 function applyFilters() {
     // Ottieni i valori dei filtri
     const nameFilter = $('#filter-name').val().toLowerCase().trim();
     const typeFilter = $('#filter-type').val();
+    const selectedTags = $('#filter-tags').val() || []; // Array di tag selezionati
     const sortBy = $('#sort-by').val();
 
     // Filtra documenti
@@ -394,6 +437,15 @@ function applyFilters() {
         // Filtro per tipo
         if (typeFilter && doc.extension !== typeFilter) {
             return false;
+        }
+
+        // Filtro per tag (selezione multipla - documento deve avere ALMENO uno dei tag selezionati)
+        if (selectedTags.length > 0 && !selectedTags.includes('')) {
+            const docTags = doc.tags || [];
+            const hasMatchingTag = selectedTags.some(selectedTag => docTags.includes(selectedTag));
+            if (!hasMatchingTag) {
+                return false;
+            }
         }
 
         return true;
