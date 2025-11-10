@@ -76,6 +76,7 @@ class OpenSearchManager:
             'settings': {
                 'number_of_shards': 1,
                 'number_of_replicas': 0,
+                'index.highlight.max_analyzed_offset': 10000000,  # Aumenta limite highlighting a 10MB
                 'analysis': {
                     'analyzer': {
                         'document_analyzer': {
@@ -269,14 +270,20 @@ class OpenSearchManager:
                 'query': query_clause,
                 'highlight': {
                     'fields': {
+                        'summary': {
+                            'fragment_size': 200,
+                            'number_of_fragments': 2
+                        },
+                        'filename': {},
                         'content': {
                             'fragment_size': 150,
-                            'number_of_fragments': 3
-                        },
-                        'summary': {}
+                            'number_of_fragments': 3,
+                            'no_match_size': 200  # Mostra un estratto anche se non c'è match
+                        }
                     },
                     'pre_tags': ['<mark>'],
-                    'post_tags': ['</mark>']
+                    'post_tags': ['</mark>'],
+                    'require_field_match': False  # Permette highlighting su tutti i campi
                 },
                 'size': size,
                 'sort': [
@@ -285,10 +292,28 @@ class OpenSearchManager:
             }
 
             # Esegui ricerca
-            response = self.client.search(
-                index=self.index_name,
-                body=search_body
-            )
+            try:
+                response = self.client.search(
+                    index=self.index_name,
+                    body=search_body
+                )
+            except RequestError as e:
+                # Se fallisce per highlighting su documenti grandi, riprova senza highlighting su content
+                if 'max_analyzed_offset' in str(e):
+                    logger.warning("⚠️  Highlighting failed for large documents, retrying without content highlighting")
+                    search_body['highlight']['fields'] = {
+                        'summary': {
+                            'fragment_size': 200,
+                            'number_of_fragments': 2
+                        },
+                        'filename': {}
+                    }
+                    response = self.client.search(
+                        index=self.index_name,
+                        body=search_body
+                    )
+                else:
+                    raise
 
             # Parse risultati
             results = []
