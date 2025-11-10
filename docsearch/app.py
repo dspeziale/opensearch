@@ -265,16 +265,21 @@ def api_upload_directory():
     tags: tags da applicare a tutti i file (opzionale)
     """
     try:
+        logger.info("=== Starting directory upload ===")
+
         # Verifica files
         if 'files[]' not in request.files:
+            logger.warning("No 'files[]' in request.files")
             return jsonify({
                 'success': False,
                 'error': 'No files provided'
             }), 400
 
         files = request.files.getlist('files[]')
+        logger.info(f"Received {len(files)} files")
 
-        if not files:
+        if not files or (len(files) == 1 and files[0].filename == ''):
+            logger.warning("No valid files selected")
             return jsonify({
                 'success': False,
                 'error': 'No files selected'
@@ -297,13 +302,25 @@ def api_upload_directory():
 
         logger.info(f"📁 Processing directory upload: {len(files)} files")
 
-        for file in files:
+        for idx, file in enumerate(files, 1):
             try:
+                logger.info(f"Processing file {idx}/{len(files)}: {file.filename}")
+
                 # Verifica estensione
                 filename = secure_filename(file.filename)
+                if not filename:
+                    logger.warning(f"Invalid filename: {file.filename}")
+                    results['failed'] += 1
+                    results['errors'].append({
+                        'filename': file.filename,
+                        'error': 'Invalid filename'
+                    })
+                    continue
+
                 file_ext = Path(filename).suffix.lower()
 
                 if file_ext not in parser.SUPPORTED_EXTENSIONS:
+                    logger.warning(f"Unsupported file type: {file_ext}")
                     results['failed'] += 1
                     results['errors'].append({
                         'filename': filename,
@@ -316,12 +333,15 @@ def api_upload_directory():
                 unique_filename = f"{timestamp}_{filename}"
                 file_path = UPLOAD_FOLDER / unique_filename
 
+                logger.info(f"Saving to: {unique_filename}")
                 file.save(str(file_path))
 
                 # Parse documento
+                logger.info(f"Parsing: {filename}")
                 parsed_doc = parser.parse(str(file_path))
 
                 if not parsed_doc['success']:
+                    logger.error(f"Parse failed: {parsed_doc.get('error')}")
                     results['failed'] += 1
                     results['errors'].append({
                         'filename': filename,
@@ -333,9 +353,11 @@ def api_upload_directory():
                 parsed_doc['tags'] = tags
 
                 # Indicizza in OpenSearch
+                logger.info(f"Indexing: {filename}")
                 index_result = opensearch.index_document(parsed_doc)
 
                 if not index_result['success']:
+                    logger.error(f"Index failed: {index_result.get('error')}")
                     results['failed'] += 1
                     results['errors'].append({
                         'filename': filename,
@@ -352,25 +374,27 @@ def api_upload_directory():
                     'size': parsed_doc['metadata']['size']
                 })
 
-                logger.info(f"✅ Indexed: {filename}")
+                logger.info(f"✅ Indexed {idx}/{len(files)}: {filename}")
 
             except Exception as e:
                 results['failed'] += 1
                 results['errors'].append({
-                    'filename': file.filename,
+                    'filename': file.filename if hasattr(file, 'filename') else 'unknown',
                     'error': str(e)
                 })
-                logger.error(f"Error processing {file.filename}: {e}")
+                logger.error(f"❌ Error processing {file.filename}: {e}", exc_info=True)
 
         logger.info(f"📊 Directory upload complete: {results['uploaded']} uploaded, {results['failed']} failed")
 
         return jsonify(results)
 
     except Exception as e:
-        logger.error(f"Directory upload error: {e}")
+        logger.error(f"❌ Critical directory upload error: {e}", exc_info=True)
+        import traceback
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': f'Critical error: {str(e)}',
+            'details': traceback.format_exc()
         }), 500
 
 

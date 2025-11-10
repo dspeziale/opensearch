@@ -573,7 +573,30 @@ function uploadMultipleFiles(files, tags) {
         },
         error: function(xhr, status, error) {
             clearInterval(progressInterval);
-            showError('Errore durante il caricamento: ' + error);
+
+            let errorMsg = 'Errore durante il caricamento multiplo: ' + error;
+
+            // Prova a estrarre più dettagli dall'errore
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                if (xhr.responseJSON.details) {
+                    console.error('Error details:', xhr.responseJSON.details);
+                }
+                if (xhr.responseJSON.errors && xhr.responseJSON.errors.length > 0) {
+                    errorMsg += '\n\nDettagli errori:\n';
+                    xhr.responseJSON.errors.slice(0, 5).forEach(err => {
+                        errorMsg += `\n- ${err.filename}: ${err.error}`;
+                    });
+                }
+            } else if (xhr.responseText) {
+                console.error('Error response:', xhr.responseText);
+            }
+
+            console.error('XHR Status:', xhr.status, 'Status Text:', xhr.statusText);
+
+            showError(errorMsg);
         }
     });
 }
@@ -581,10 +604,15 @@ function uploadMultipleFiles(files, tags) {
 function showError(message) {
     $('#upload-progress').hide();
 
+    // Converti newline in <br> per visualizzazione HTML
+    const formattedMessage = message.replace(/\n/g, '<br>');
+
     const errorHtml = `
         <div class="alert alert-danger">
             <h4><i class="fas fa-exclamation-triangle"></i> Errore</h4>
-            <p>${message}</p>
+            <p>${formattedMessage}</p>
+            <hr>
+            <p class="mb-0"><small>Controlla la console del browser (F12) e i log del server per maggiori dettagli.</small></p>
         </div>
     `;
 
