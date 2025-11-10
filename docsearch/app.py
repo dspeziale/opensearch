@@ -5,8 +5,10 @@ Sistema di Documentazione Intelligente con OpenSearch
 
 import os
 import logging
+import requests
 from pathlib import Path
 from datetime import datetime
+from urllib.parse import urlparse, unquote
 from werkzeug.utils import secure_filename
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -568,6 +570,193 @@ def api_download(doc_id):
 
     except Exception as e:
         logger.error(f"Download error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/upload/url', methods=['POST'])
+def api_upload_url():
+    """
+    API per caricare documento da URL
+
+    POST /api/upload/url (application/json)
+    {
+        "url": "https://example.com/document.pdf",
+        "tags": "tag1, tag2"  // opzionale
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'url' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'URL is required'
+            }), 400
+
+        url = data['url'].strip()
+
+        # Validazione URL
+        try:
+            parsed_url = urlparse(url)
+            if not parsed_url.scheme or not parsed_url.netloc:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid URL format'
+                }), 400
+        except Exception:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid URL'
+            }), 400
+
+        logger.info(f"🌐 Downloading from URL: {url}")
+
+        # Download del file con timeout
+        headers = {
+            'User-Agent': 'DocSearch/1.0 (Document Indexing Bot)'
+        }
+
+        response = requests.get(url, headers=headers, timeout=30, stream=True)
+        response.raise_for_status()
+
+        # Determina il nome del file
+        filename = None
+
+        # Prova da Content-Disposition header
+        if 'Content-Disposition' in response.headers:
+            cd = response.headers['Content-Disposition']
+            if 'filename=' in cd:
+                filename = cd.split('filename=')[1].strip('"\'')
+
+        # Altrimenti usa l'URL
+        if not filename:
+            url_path = unquote(parsed_url.path)
+            filename = os.path.basename(url_path)
+
+        # Se ancora non c'è nome, usa un default
+        if not filename or filename == '':
+            # Prova a determinare l'estensione dal Content-Type
+            content_type = response.headers.get('Content-Type', '').lower()
+            ext = '.html'  # default
+            if 'pdf' in content_type:
+                ext = '.pdf'
+            elif 'word' in content_type or 'msword' in content_type:
+                ext = '.docx'
+            elif 'excel' in content_type or 'spreadsheet' in content_type:
+                ext = '.xlsx'
+            elif 'text/plain' in content_type:
+                ext = '.txt'
+            elif 'json' in content_type:
+                ext = '.json'
+            elif 'xml' in content_type:
+                ext = '.xml'
+
+            filename = f"url_document_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+
+        filename = secure_filename(filename)
+
+        # Verifica estensione supportata
+        file_ext = Path(filename).suffix.lower()
+
+        # Se non ha estensione, aggiungi .html (per pagine web)
+        if not file_ext:
+            filename += '.html'
+            file_ext = '.html'
+
+        if file_ext not in parser.SUPPORTED_EXTENSIONS:
+            return jsonify({
+                'success': False,
+                'error': f'Unsupported file type: {file_ext}',
+                'supported': list(parser.SUPPORTED_EXTENSIONS.keys())
+            }), 400
+
+        # Salva il file
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{timestamp}_{filename}"
+        file_path = UPLOAD_FOLDER / unique_filename
+
+        # Scrivi il contenuto
+        with open(file_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        logger.info(f"✅ Downloaded: {filename} ({os.path.getsize(file_path)} bytes)")
+
+        # Parse documento
+        parsed_doc = parser.parse(str(file_path))
+
+        if not parsed_doc['success']:
+            # Rimuovi il file se il parsing fallisce
+            os.remove(file_path)
+            return jsonify({
+                'success': False,
+                'error': f"Failed to parse document: {parsed_doc.get('error')}"
+            }), 500
+
+        # Aggiungi URL originale ai metadati
+        if 'metadata' not in parsed_doc:
+            parsed_doc['metadata'] = {}
+        parsed_doc['metadata']['source_url'] = url
+
+        # Aggiungi tags se presenti
+        tags_input = data.get('tags', '').strip()
+        if tags_input:
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            parsed_doc['tags'] = tags
+        else:
+            parsed_doc['tags'] = []
+
+        # Indicizza in OpenSearch
+        index_result = opensearch.index_document(parsed_doc)
+
+        if not index_result['success']:
+            return jsonify({
+                'success': False,
+                'error': f"Failed to index document: {index_result.get('error')}"
+            }), 500
+
+        logger.info(f"✅ Document from URL indexed: {filename}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Document from URL uploaded and indexed successfully',
+            'document': {
+                'id': index_result['doc_id'],
+                'filename': filename,
+                'type': parsed_doc['type'],
+                'size': parsed_doc['metadata']['size'],
+                'keywords': parsed_doc['keywords'][:10],
+                'tags': parsed_doc.get('tags', []),
+                'source_url': url
+            }
+        })
+
+    except requests.exceptions.Timeout:
+        logger.error("URL download timeout")
+        return jsonify({
+            'success': False,
+            'error': 'Download timeout: URL took too long to respond'
+        }), 408
+
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error downloading URL: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'HTTP error: {e.response.status_code} - {e.response.reason}'
+        }), 400
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error downloading URL: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to download URL: {str(e)}'
+        }), 400
+
+    except Exception as e:
+        logger.error(f"Upload from URL error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

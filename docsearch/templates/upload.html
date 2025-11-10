@@ -18,6 +18,11 @@
                             <i class="fas fa-folder"></i> Directory
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="url-tab" data-toggle="pill" href="#url" role="tab" aria-controls="url" aria-selected="false">
+                            <i class="fas fa-link"></i> Da URL
+                        </a>
+                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -132,6 +137,82 @@
 
                         <!-- Result -->
                         <div id="directory-result" class="mt-4" style="display: none;"></div>
+                    </div>
+
+                    <!-- TAB: Da URL -->
+                    <div class="tab-pane fade" id="url" role="tabpanel" aria-labelledby="url-tab">
+                        <h4 class="mb-3"><i class="fas fa-link"></i> Carica da URL</h4>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> <strong>Nota:</strong> Puoi caricare documenti direttamente da URL. Il sistema scaricherà e indicizzerà automaticamente il contenuto.
+                        </div>
+
+                        <form id="url-upload-form">
+                            <div class="form-group">
+                                <label for="url-input">
+                                    <i class="fas fa-globe"></i> URL del Documento
+                                </label>
+                                <input type="url" class="form-control form-control-lg" id="url-input"
+                                       placeholder="https://example.com/document.pdf" required>
+                                <small class="form-text text-muted">
+                                    Inserisci l'URL completo del documento. Supporta: PDF, DOC, DOCX, HTML, JSON, XML, TXT e altri formati.
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="url-tags-input">
+                                    <i class="fas fa-tags"></i> Tags (opzionale)
+                                </label>
+                                <input type="text" class="form-control" id="url-tags-input"
+                                       placeholder="Es: documentazione, tutorial, api (separati da virgola)">
+                                <small class="form-text text-muted">
+                                    Aggiungi tags per categorizzare il documento.
+                                </small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg btn-block">
+                                <i class="fas fa-cloud-download-alt"></i> Scarica e Indicizza
+                            </button>
+                        </form>
+
+                        <!-- Progress -->
+                        <div id="url-progress" class="mt-4" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     id="url-progress-bar"
+                                     role="progressbar"
+                                     style="width: 0%">
+                                    <span id="url-progress-text">0%</span>
+                                </div>
+                            </div>
+                            <p class="text-center mt-2" id="url-status-text">Download in corso...</p>
+                        </div>
+
+                        <!-- Result -->
+                        <div id="url-result" class="mt-4" style="display: none;"></div>
+
+                        <!-- Examples -->
+                        <div class="card card-light mt-4">
+                            <div class="card-header">
+                                <h5 class="card-title"><i class="fas fa-lightbulb"></i> Esempi di URL</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>URL Diretti a File:</strong></p>
+                                <ul>
+                                    <li><code>https://example.com/manual.pdf</code></li>
+                                    <li><code>https://docs.example.com/api/v1/documentation.json</code></li>
+                                    <li><code>https://raw.githubusercontent.com/user/repo/main/README.md</code></li>
+                                </ul>
+                                <p class="mt-3"><strong>Pagine Web (HTML):</strong></p>
+                                <ul>
+                                    <li><code>https://example.com/blog/article</code></li>
+                                    <li><code>https://docs.example.com/guide/getting-started</code></li>
+                                </ul>
+                                <p class="text-muted mt-3">
+                                    <i class="fas fa-info-circle"></i> Il sistema determina automaticamente il tipo di file dal Content-Type o dall'estensione.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -505,6 +586,139 @@ function showDirectoryError(message) {
     `;
 
     $('#directory-result').html(errorHtml).show();
+}
+
+// ====== TAB: Da URL ======
+
+$('#url-upload-form').on('submit', function(e) {
+    e.preventDefault();
+
+    const url = $('#url-input').val().trim();
+    if (!url) {
+        alert('Inserisci un URL valido');
+        return;
+    }
+
+    const tagsInput = $('#url-tags-input').val().trim();
+
+    // Show progress
+    $('#url-progress').show();
+    $('#url-result').hide();
+    $('#url-progress-bar').css('width', '0%');
+    $('#url-progress-text').text('0%');
+    $('#url-status-text').text('Download in corso...');
+
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(function() {
+        if (progress < 90) {
+            progress += 5;
+            $('#url-progress-bar').css('width', progress + '%');
+            $('#url-progress-text').text(progress + '%');
+        }
+    }, 300);
+
+    // Upload
+    $.ajax({
+        url: '/api/upload/url',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            url: url,
+            tags: tagsInput
+        }),
+        success: function(response) {
+            clearInterval(progressInterval);
+            $('#url-progress-bar').css('width', '100%');
+            $('#url-progress-text').text('100%');
+
+            if (response.success) {
+                $('#url-status-text').text('✅ Download e indicizzazione completati!');
+
+                setTimeout(function() {
+                    $('#url-progress').hide();
+
+                    const doc = response.document;
+                    let tagsHtml = '';
+                    if (doc.tags && doc.tags.length > 0) {
+                        tagsHtml = `
+                            <div class="mt-2">
+                                <strong>Tags:</strong><br>
+                                ${doc.tags.map(tag => `<span class="badge badge-success">${tag}</span>`).join(' ')}
+                            </div>
+                        `;
+                    }
+
+                    let resultHtml = `
+                        <div class="alert alert-success">
+                            <h4><i class="fas fa-check-circle"></i> Documento da URL indicizzato!</h4>
+                            <hr>
+                            <p><strong>URL Sorgente:</strong> <a href="${doc.source_url}" target="_blank">${doc.source_url}</a></p>
+                            <p><strong>Nome File:</strong> ${doc.filename}</p>
+                            <p><strong>Tipo:</strong> ${doc.type}</p>
+                            <p><strong>Dimensione:</strong> ${(doc.size / 1024).toFixed(2)} KB</p>
+                            <p><strong>ID:</strong> <code>${doc.id}</code></p>
+                            <div>
+                                <strong>Keywords estratte:</strong><br>
+                                ${doc.keywords.map(kw => `<span class="badge badge-info">${kw}</span>`).join(' ')}
+                            </div>
+                            ${tagsHtml}
+                            <hr>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Vai alla Ricerca
+                            </a>
+                            <button class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-plus"></i> Carica Altro
+                            </button>
+                        </div>
+                    `;
+
+                    $('#url-result').html(resultHtml).show();
+
+                    // Reset form
+                    $('#url-upload-form')[0].reset();
+                }, 500);
+            } else {
+                showUrlError(response.error);
+            }
+        },
+        error: function(xhr, status, error) {
+            clearInterval(progressInterval);
+            let errorMsg = 'Errore durante il download';
+
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (status === 'timeout') {
+                errorMsg = 'Timeout: l\'URL non risponde';
+            } else if (error) {
+                errorMsg += ': ' + error;
+            }
+
+            showUrlError(errorMsg);
+        },
+        timeout: 60000  // 60 secondi timeout
+    });
+});
+
+function showUrlError(message) {
+    $('#url-progress').hide();
+
+    const errorHtml = `
+        <div class="alert alert-danger">
+            <h4><i class="fas fa-exclamation-triangle"></i> Errore Download</h4>
+            <p>${message}</p>
+            <hr>
+            <p class="mb-0"><strong>Possibili cause:</strong></p>
+            <ul>
+                <li>URL non valido o non raggiungibile</li>
+                <li>Formato file non supportato</li>
+                <li>Il server remoto non risponde</li>
+                <li>Permessi insufficienti per accedere alla risorsa</li>
+            </ul>
+        </div>
+    `;
+
+    $('#url-result').html(errorHtml).show();
 }
 </script>
 {% endblock %}
