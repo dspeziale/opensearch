@@ -29,6 +29,22 @@
 
                 <hr>
 
+                <h5><i class="fas fa-server text-success"></i> Server OpenSearch</h5>
+                <div id="server-info-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Caricamento...</span>
+                    </div>
+                    <p class="text-muted mt-2">Caricamento informazioni server...</p>
+                </div>
+                <div id="server-info-content" style="display: none;">
+                    <!-- Contenuto dinamico -->
+                </div>
+                <div id="server-info-error" class="alert alert-warning" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i> Impossibile caricare le informazioni del server
+                </div>
+
+                <hr>
+
                 <h5><i class="fas fa-cogs text-info"></i> Tecnologie</h5>
                 <div class="row">
                     <div class="col-md-6">
@@ -93,4 +109,101 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadServerInfo();
+});
+
+function loadServerInfo() {
+    $.ajax({
+        url: '/api/server-info',
+        method: 'GET',
+        success: function(response) {
+            $('#server-info-loading').hide();
+
+            if (response.success) {
+                displayServerInfo(response);
+            } else {
+                $('#server-info-error').show();
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#server-info-loading').hide();
+            $('#server-info-error').show();
+        }
+    });
+}
+
+function displayServerInfo(info) {
+    // Determina il colore dello stato del cluster
+    let healthColor = 'success';
+    let healthIcon = 'check-circle';
+    if (info.cluster_health.status === 'yellow') {
+        healthColor = 'warning';
+        healthIcon = 'exclamation-triangle';
+    } else if (info.cluster_health.status === 'red') {
+        healthColor = 'danger';
+        healthIcon = 'times-circle';
+    }
+
+    let indexStatsHtml = '';
+    if (info.index_stats && Object.keys(info.index_stats).length > 0) {
+        indexStatsHtml = `
+            <div class="col-md-6 mb-2">
+                <strong>Documenti indicizzati:</strong> ${info.index_stats.docs_count}
+            </div>
+            <div class="col-md-6 mb-2">
+                <strong>Dimensione indice:</strong> ${info.index_stats.store_size_mb} MB
+            </div>
+        `;
+    }
+
+    const html = `
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <strong>Cluster:</strong> ${info.cluster_name}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <strong>Versione:</strong> ${info.version}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <strong>Host:</strong> ${info.host}:${info.port}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <strong>Indice:</strong> <code>${info.index_name}</code>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <strong>Stato Cluster:</strong>
+                        <span class="badge badge-${healthColor}">
+                            <i class="fas fa-${healthIcon}"></i> ${info.cluster_health.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <strong>Nodi:</strong> ${info.cluster_health.number_of_nodes}
+                    </div>
+                    ${indexStatsHtml}
+                </div>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Shards:</strong>
+                        Active: ${info.cluster_health.active_shards} |
+                        Relocating: ${info.cluster_health.relocating_shards} |
+                        Initializing: ${info.cluster_health.initializing_shards} |
+                        Unassigned: ${info.cluster_health.unassigned_shards}
+                    </small>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('#server-info-content').html(html).show();
+}
+</script>
 {% endblock %}

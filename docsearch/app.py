@@ -535,6 +535,25 @@ def api_tags():
         }), 500
 
 
+@app.route('/api/server-info', methods=['GET'])
+def api_server_info():
+    """
+    API per ottenere informazioni sul server OpenSearch
+
+    GET /api/server-info
+    """
+    try:
+        server_info = opensearch.get_server_info()
+        return jsonify(server_info)
+
+    except Exception as e:
+        logger.error(f"Server info error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/download/<doc_id>', methods=['GET'])
 def api_download(doc_id):
     """

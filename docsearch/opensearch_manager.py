@@ -448,6 +448,70 @@ class OpenSearchManager:
                 'by_extension': {}
             }
 
+    def get_server_info(self) -> Dict:
+        """
+        Ottieni informazioni sul server OpenSearch
+
+        Returns:
+            {
+                'success': bool,
+                'cluster_name': str,
+                'version': str,
+                'cluster_health': dict,
+                'host': str,
+                'port': int
+            }
+        """
+        try:
+            # Informazioni server base
+            info_response = self.client.info()
+
+            # Salute del cluster
+            health_response = self.client.cluster.health()
+
+            # Informazioni sull'indice
+            index_stats = {}
+            try:
+                stats_response = self.client.indices.stats(index=self.index_name)
+                if self.index_name in stats_response['indices']:
+                    idx_stats = stats_response['indices'][self.index_name]['total']
+                    index_stats = {
+                        'docs_count': idx_stats['docs']['count'],
+                        'docs_deleted': idx_stats['docs']['deleted'],
+                        'store_size_bytes': idx_stats['store']['size_in_bytes'],
+                        'store_size_mb': round(idx_stats['store']['size_in_bytes'] / 1024 / 1024, 2)
+                    }
+            except Exception as e:
+                logger.warning(f"Could not get index stats: {e}")
+                index_stats = {}
+
+            return {
+                'success': True,
+                'cluster_name': info_response.get('cluster_name', 'Unknown'),
+                'version': info_response.get('version', {}).get('number', 'Unknown'),
+                'cluster_health': {
+                    'status': health_response.get('status', 'unknown'),
+                    'number_of_nodes': health_response.get('number_of_nodes', 0),
+                    'active_shards': health_response.get('active_shards', 0),
+                    'relocating_shards': health_response.get('relocating_shards', 0),
+                    'initializing_shards': health_response.get('initializing_shards', 0),
+                    'unassigned_shards': health_response.get('unassigned_shards', 0)
+                },
+                'index_name': self.index_name,
+                'index_stats': index_stats,
+                'host': self.host,
+                'port': self.port
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting server info: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'host': self.host,
+                'port': self.port
+            }
+
     def get_all_tags(self) -> Dict:
         """
         Ottieni tutti i tags disponibili con conteggio documenti
