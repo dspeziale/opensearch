@@ -32,8 +32,8 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 
 CORS(app)
 
-# Directory uploads
-UPLOAD_FOLDER = Path(__file__).parent / 'static' / 'uploads'
+# Directory uploads (fuori da static per evitare auto-reload durante upload)
+UPLOAD_FOLDER = Path(__file__).parent / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
