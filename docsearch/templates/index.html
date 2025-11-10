@@ -827,53 +827,47 @@ function showDocumentDetail(doc) {
 }
 
 function deleteDocument(docId, filename) {
-    Swal.fire({
-        title: 'Conferma eliminazione',
-        html: `Sei sicuro di voler eliminare<br><strong>"${getDisplayFilename(filename)}"</strong>?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: '<i class="fas fa-trash"></i> Sì, elimina',
-        cancelButtonText: '<i class="fas fa-times"></i> Annulla',
-        customClass: {
-            confirmButton: 'btn btn-danger',
-            cancelButton: 'btn btn-secondary'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Mostra loading
-            Swal.fire({
-                title: 'Eliminazione in corso...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
+    notifier.confirm(
+        `Sei sicuro di voler eliminare "${getDisplayFilename(filename)}"?`,
+        function() {
+            // Conferma - procedi con eliminazione
+            const asyncBlock = notifier.async(
+                'Eliminazione in corso...',
+                function(res) {
+                    notifier.success('Documento eliminato con successo!');
+                    loadDocuments();
+                },
+                function(err) {
+                    notifier.alert('Errore durante l\'eliminazione: ' + err);
                 }
-            });
+            );
 
+            // Esegui chiamata AJAX
             $.ajax({
                 url: `/api/document/${docId}`,
                 method: 'DELETE',
                 success: function(response) {
                     if (response.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Eliminato!',
-                            text: 'Il documento è stato eliminato con successo',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                        loadDocuments();
+                        asyncBlock(response);
                     } else {
-                        showError(response.error);
+                        asyncBlock.error(response.error);
                     }
                 },
                 error: function(xhr, status, error) {
-                    showError('Errore durante l\'eliminazione: ' + error);
+                    asyncBlock.error(error);
                 }
             });
+        },
+        function() {
+            // Annulla - non fare nulla
+        },
+        {
+            labels: {
+                confirm: 'Sì, elimina',
+                cancel: 'Annulla'
+            }
         }
-    });
+    );
 }
 
 function populateDocumentTagsFilter() {
@@ -1018,15 +1012,7 @@ function formatSize(bytes) {
 }
 
 function showError(message) {
-    Swal.fire({
-        icon: 'error',
-        title: 'Errore',
-        text: message,
-        confirmButtonText: 'OK',
-        customClass: {
-            confirmButton: 'btn btn-primary'
-        }
-    });
+    notifier.alert(message);
 }
 </script>
 {% endblock %}

@@ -339,7 +339,7 @@ $('#upload-form').on('submit', function(e) {
 
     const fileInput = $('#file-input')[0];
     if (!fileInput.files || fileInput.files.length === 0) {
-        alert('Seleziona almeno un file');
+        notifier.warning('Seleziona almeno un file');
         return;
     }
 
@@ -652,7 +652,7 @@ $('#directory-upload-form').on('submit', function(e) {
 
     const fileInput = $('#directory-input')[0];
     if (!fileInput.files || fileInput.files.length === 0) {
-        alert('Seleziona una directory o file multipli');
+        notifier.warning('Seleziona una directory o file multipli');
         return;
     }
 
@@ -803,7 +803,7 @@ $('#url-upload-form').on('submit', function(e) {
 
     const url = $('#url-input').val().trim();
     if (!url) {
-        alert('Inserisci un URL valido');
+        notifier.warning('Inserisci un URL valido');
         return;
     }
 
