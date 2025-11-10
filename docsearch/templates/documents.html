@@ -192,7 +192,7 @@ function renderDocuments() {
             <tr>
                 <td>
                     <i class="fas fa-file-${getFileIcon(doc.extension)} text-primary"></i>
-                    <strong>${doc.filename}</strong>
+                    <strong>${getDisplayFilename(doc.filename)}</strong>
                 </td>
                 <td><span class="badge badge-info">${doc.type}</span></td>
                 <td>${formatSize(doc.file_size)}</td>
@@ -283,7 +283,7 @@ function viewDocument(docId) {
 }
 
 function showDocumentDetail(doc) {
-    $('#modal-title').text(doc.filename);
+    $('#modal-title').text(getDisplayFilename(doc.filename));
 
     const keywords = (doc.keywords || []).map(kw =>
         `<span class="badge badge-secondary">${kw}</span>`
@@ -367,6 +367,25 @@ function deleteDocument(docId, filename) {
 function applyFilters() {
     // TODO: Implement filters
     alert('Filtri in via di implementazione');
+}
+
+function getDisplayFilename(filename) {
+    // Rimuovi timestamp dal nome file (formato: YYYYMMDD_HHMMSS_* o YYYYMMDD_HHMMSS_MICROSECONDS_*)
+    // Esempi: 20251110_114757_557040_file.pdf -> file.pdf
+    //         20251110_114757_file.pdf -> file.pdf
+    if (filename.match(/^\d{8}_\d{6}_(\d+_)?/)) {
+        // Trova la posizione dopo il timestamp
+        const parts = filename.split('_');
+        if (parts.length >= 3) {
+            // Se c'è un terzo gruppo di cifre (microsecondi), rimuovi anche quello
+            if (parts[2] && /^\d+$/.test(parts[2])) {
+                return parts.slice(3).join('_');
+            }
+            // Altrimenti rimuovi solo data e ora
+            return parts.slice(2).join('_');
+        }
+    }
+    return filename;
 }
 
 function getFileIcon(extension) {
