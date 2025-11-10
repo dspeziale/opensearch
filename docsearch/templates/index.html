@@ -230,8 +230,7 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select class="form-control" id="filter-tags" multiple size="4" title="Filtra per tag (Ctrl/Cmd per multipli)">
-                                    <option value="">Tutti i tag</option>
+                                <select class="form-control" id="filter-tags" multiple>
                                 </select>
                             </div>
                             <div class="col-md-2">
@@ -330,6 +329,15 @@ const pageSize = 20;
 
 // ============ INITIALIZATION ============
 $(document).ready(function() {
+    // Inizializza Select2 per filtro tag
+    $('#filter-tags').select2({
+        theme: 'bootstrap4',
+        placeholder: 'Seleziona tag...',
+        allowClear: true,
+        closeOnSelect: false,
+        width: '100%'
+    });
+
     loadTags();
 
     // Load documents when switching to documents tab
@@ -819,23 +827,51 @@ function showDocumentDetail(doc) {
 }
 
 function deleteDocument(docId, filename) {
-    if (!confirm(`Sei sicuro di voler eliminare "${filename}"?`)) {
-        return;
-    }
+    Swal.fire({
+        title: 'Conferma eliminazione',
+        html: `Sei sicuro di voler eliminare<br><strong>"${getDisplayFilename(filename)}"</strong>?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: '<i class="fas fa-trash"></i> Sì, elimina',
+        cancelButtonText: '<i class="fas fa-times"></i> Annulla',
+        customClass: {
+            confirmButton: 'btn btn-danger',
+            cancelButton: 'btn btn-secondary'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Mostra loading
+            Swal.fire({
+                title: 'Eliminazione in corso...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
 
-    $.ajax({
-        url: `/api/document/${docId}`,
-        method: 'DELETE',
-        success: function(response) {
-            if (response.success) {
-                alert('✅ Documento eliminato con successo');
-                loadDocuments();
-            } else {
-                showError(response.error);
-            }
-        },
-        error: function(xhr, status, error) {
-            showError('Errore durante l\'eliminazione: ' + error);
+            $.ajax({
+                url: `/api/document/${docId}`,
+                method: 'DELETE',
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Eliminato!',
+                            text: 'Il documento è stato eliminato con successo',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        loadDocuments();
+                    } else {
+                        showError(response.error);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showError('Errore durante l\'eliminazione: ' + error);
+                }
+            });
         }
     });
 }
@@ -854,25 +890,30 @@ function populateDocumentTagsFilter() {
 
     // Popola il select
     const filterTags = $('#filter-tags');
-    filterTags.empty();
-    filterTags.append('<option value="">Tutti i tag</option>');
+    const currentValue = filterTags.val(); // Salva selezione corrente
 
+    filterTags.empty();
     sortedTags.forEach(tag => {
         filterTags.append(`<option value="${tag}">${tag}</option>`);
     });
+
+    // Ripristina selezione
+    if (currentValue) {
+        filterTags.val(currentValue).trigger('change');
+    }
 }
 
 function clearDocumentFilters() {
     $('#filter-name').val('');
     $('#filter-type').val('');
-    $('#filter-tags').val('');
+    $('#filter-tags').val(null).trigger('change'); // Reset Select2
     $('#sort-by').val('indexed_at');
     applyDocumentFilters();
 }
 
 function applyFilters() {
-    // TODO: Implement filters
-    alert('Filtri in via di implementazione');
+    // Placeholder per eventuali filtri nella tab Ricerca
+    // I filtri veri e propri sono nella tab Documenti (applyDocumentFilters)
 }
 
 function applyDocumentFilters() {
@@ -977,7 +1018,15 @@ function formatSize(bytes) {
 }
 
 function showError(message) {
-    alert('Errore: ' + message);
+    Swal.fire({
+        icon: 'error',
+        title: 'Errore',
+        text: message,
+        confirmButtonText: 'OK',
+        customClass: {
+            confirmButton: 'btn btn-primary'
+        }
+    });
 }
 </script>
 {% endblock %}
