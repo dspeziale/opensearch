@@ -149,7 +149,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
 
         # Aggiungi info dal documento più rilevante
         if top_result:
-            answer_parts.append(f"\n\n📄 **Documento principale**: {top_result['filename']}")
+            answer_parts.append(f"\n\n**Documento principale**: {top_result['filename']}")
 
             if top_result.get('highlight'):
                 answer_parts.append(f"\n{top_result['highlight']}")
@@ -159,7 +159,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
             # Keywords rilevanti
             if top_result.get('keywords'):
                 keywords = ', '.join(top_result['keywords'][:5])
-                answer_parts.append(f"\n\n🔑 **Concetti chiave**: {keywords}")
+                answer_parts.append(f"\n\n**Concetti chiave**: {keywords}")
 
         # Genera flusso
         flow = self._generate_exploration_flow(results, question_type)
@@ -184,7 +184,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
         ]
 
         return {
-            'answer': f"😕 Non ho trovato documenti per '{query}'.\n\nProva a riformulare la ricerca o usa termini diversi.",
+            'answer': f"Non ho trovato documenti per '{query}'.\n\nProva a riformulare la ricerca o usa termini diversi.",
             'confidence': 0.0,
             'sources': [],
             'flow': [],
@@ -225,7 +225,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
         if len(results) > 1:
             related_docs = [r['filename'] for r in results[1:3]]
             if related_docs:
-                flow.append(f"2. 🔗 Approfondisci con: {', '.join(related_docs)}")
+                flow.append(f"2. Approfondisci con: {', '.join(related_docs)}")
 
         # Step 3: Concetti chiave
         all_keywords = []
@@ -241,7 +241,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
 
         if top_keywords:
             keywords_str = ', '.join([kw for kw, _ in top_keywords])
-            flow.append(f"3. 🎯 Esplora i concetti: {keywords_str}")
+            flow.append(f"3. Esplora i concetti: {keywords_str}")
 
         # Step 4: Documenti per tipo
         doc_types = {}
@@ -253,7 +253,7 @@ SUGGERIMENTI: [suggerimento1, suggerimento2, suggerimento3]
 
         if len(doc_types) > 1:
             types_str = ', '.join(doc_types.keys())
-            flow.append(f"4. 📑 Consulta anche: {types_str}")
+            flow.append(f"4. Consulta anche: {types_str}")
 
         return flow
 
